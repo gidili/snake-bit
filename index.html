@@ -112,14 +112,26 @@
   #kbd-info .kbd-body > div {
     white-space: nowrap;
   }
-  #dpad {
+  #control-cluster {
     grid-column: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+  }
+  #dpad {
     display: grid;
     grid-template-columns: repeat(3, 36px);
     grid-template-rows: repeat(3, 36px);
     gap: 2px;
   }
-  .dpad-btn {
+  #action-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    width: 100%;
+  }
+  .dpad-btn, .action-btn {
     background: #2a2a3a;
     color: #e5e7eb;
     border: 2px solid #3a3a4a;
@@ -132,9 +144,13 @@
     touch-action: manipulation;
     padding: 0;
   }
-  .dpad-btn:active {
+  .dpad-btn:active, .action-btn:active {
     background: #3a3a4a;
     transform: scale(0.94);
+  }
+  .action-btn {
+    height: 26px;
+    font-size: 12px;
   }
   .dpad-btn[data-dir="up"]    { grid-column: 2; grid-row: 1; }
   .dpad-btn[data-dir="left"]  { grid-column: 1; grid-row: 2; }
@@ -164,6 +180,7 @@
       grid-template-columns: repeat(3, 32px);
       grid-template-rows: repeat(3, 32px);
     }
+    .action-btn { height: 24px; font-size: 11px; }
     #legend { font-size: 8px; gap: 4px; }
     .legend-sprite { width: 22px; height: 22px; }
     #kbd-info { font-size: 9px; }
@@ -188,11 +205,17 @@
         <div>Restart <kbd>R</kbd></div>
       </div>
     </details>
-    <div id="dpad" role="group" aria-label="Directional pad">
-      <button class="dpad-btn" data-dir="up" aria-label="Up">▲</button>
-      <button class="dpad-btn" data-dir="left" aria-label="Left">◀</button>
-      <button class="dpad-btn" data-dir="right" aria-label="Right">▶</button>
-      <button class="dpad-btn" data-dir="down" aria-label="Down">▼</button>
+    <div id="control-cluster">
+      <div id="dpad" role="group" aria-label="Directional pad">
+        <button class="dpad-btn" data-dir="up" aria-label="Up">▲</button>
+        <button class="dpad-btn" data-dir="left" aria-label="Left">◀</button>
+        <button class="dpad-btn" data-dir="right" aria-label="Right">▶</button>
+        <button class="dpad-btn" data-dir="down" aria-label="Down">▼</button>
+      </div>
+      <div id="action-row">
+        <button class="action-btn" id="btn-pause" aria-label="Pause">⏸</button>
+        <button class="action-btn" id="btn-restart" aria-label="Restart">↻</button>
+      </div>
     </div>
     <div id="legend">
       <div class="legend-item">

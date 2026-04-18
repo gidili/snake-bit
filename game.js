@@ -654,24 +654,42 @@
     ArrowRight: {x: 1, y: 0}, d: {x: 1, y: 0}, D: {x: 1, y: 0},
   };
 
+  const pauseBtn = document.getElementById('btn-pause');
+
+  function togglePause() {
+    if (!alive) return;
+    paused = !paused;
+    if (paused) {
+      pausedAt = performance.now();
+    } else {
+      pausedTotal += performance.now() - pausedAt;
+      lastTick = performance.now();
+    }
+    pauseBtn.textContent = paused ? '▶' : '⏸';
+    pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');
+  }
+
   window.addEventListener('keydown', (e) => {
     if (keyMap[e.key]) {
       nextDir = keyMap[e.key];
       e.preventDefault();
     } else if (e.key === ' ') {
-      if (alive) {
-        paused = !paused;
-        if (paused) {
-          pausedAt = performance.now();
-        } else {
-          pausedTotal += performance.now() - pausedAt;
-          lastTick = performance.now();
-        }
-      }
+      togglePause();
       e.preventDefault();
     } else if (e.key === 'r' || e.key === 'R') {
       reset();
     }
+  });
+
+  pauseBtn.addEventListener('click', (e) => {
+    togglePause();
+    e.currentTarget.blur();
+  });
+  document.getElementById('btn-restart').addEventListener('click', (e) => {
+    reset();
+    pauseBtn.textContent = '⏸';
+    pauseBtn.setAttribute('aria-label', 'Pause');
+    e.currentTarget.blur();
   });
 
   const DIR_MAP = {

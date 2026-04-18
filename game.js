@@ -250,6 +250,77 @@
     '.': null,
   };
 
+  const SPR_BTN_UP = [
+    '...WW...',
+    '..WWWW..',
+    '.WWWWWW.',
+    'WWWWWWWW',
+    '...WW...',
+    '...WW...',
+    '...WW...',
+    '...WW...',
+  ];
+  const SPR_BTN_DOWN = [
+    '...WW...',
+    '...WW...',
+    '...WW...',
+    '...WW...',
+    'WWWWWWWW',
+    '.WWWWWW.',
+    '..WWWW..',
+    '...WW...',
+  ];
+  const SPR_BTN_LEFT = [
+    '...W....',
+    '..WW....',
+    '.WWW....',
+    'WWWWWWWW',
+    'WWWWWWWW',
+    '.WWW....',
+    '..WW....',
+    '...W....',
+  ];
+  const SPR_BTN_RIGHT = [
+    '....W...',
+    '....WW..',
+    '....WWW.',
+    'WWWWWWWW',
+    'WWWWWWWW',
+    '....WWW.',
+    '....WW..',
+    '....W...',
+  ];
+  const SPR_BTN_PAUSE = [
+    '.WW..WW.',
+    '.WW..WW.',
+    '.WW..WW.',
+    '.WW..WW.',
+    '.WW..WW.',
+    '.WW..WW.',
+    '.WW..WW.',
+    '.WW..WW.',
+  ];
+  const SPR_BTN_PLAY = [
+    '.W......',
+    '.WWW....',
+    '.WWWWW..',
+    '.WWWWWWW',
+    '.WWWWWWW',
+    '.WWWWW..',
+    '.WWW....',
+    '.W......',
+  ];
+  const SPR_BTN_RESTART = [
+    '.WWWWW..',
+    'WW...WWW',
+    'W.....W.',
+    'W.......',
+    'W.......',
+    'W......W',
+    '.WW...WW',
+    '..WWWWW.',
+  ];
+
   const SPR_HEAD = [
     '.dggggd.',
     'dggggggd',
@@ -519,6 +590,17 @@
     document.getElementById('egg-pts').textContent = FOOD_TYPES.egg.value;
   }
 
+  const DIR_SPRITES = {
+    up: SPR_BTN_UP, down: SPR_BTN_DOWN, left: SPR_BTN_LEFT, right: SPR_BTN_RIGHT,
+  };
+  function initButtonIcons() {
+    document.querySelectorAll('.dpad-btn').forEach(btn => {
+      renderSpriteToCanvas(DIR_SPRITES[btn.dataset.dir], btn.querySelector('.btn-icon'));
+    });
+    renderSpriteToCanvas(SPR_BTN_PAUSE, document.querySelector('#btn-pause .btn-icon'));
+    renderSpriteToCanvas(SPR_BTN_RESTART, document.querySelector('#btn-restart .btn-icon'));
+  }
+
   // Pick from fixed NES-master-palette schemes. No interpolation — authentic hardware colors only.
   const SNAKE_SCHEMES = [
     { d: '#005800', g: '#00A800', h: '#58F898' }, // classic green
@@ -655,6 +737,7 @@
   };
 
   const pauseBtn = document.getElementById('btn-pause');
+  const pauseIcon = pauseBtn.querySelector('.btn-icon');
 
   function togglePause() {
     if (!alive) return;
@@ -665,7 +748,7 @@
       pausedTotal += performance.now() - pausedAt;
       lastTick = performance.now();
     }
-    pauseBtn.textContent = paused ? '▶' : '⏸';
+    renderSpriteToCanvas(paused ? SPR_BTN_PLAY : SPR_BTN_PAUSE, pauseIcon);
     pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');
   }
 
@@ -687,7 +770,7 @@
   });
   document.getElementById('btn-restart').addEventListener('click', (e) => {
     reset();
-    pauseBtn.textContent = '⏸';
+    renderSpriteToCanvas(SPR_BTN_PAUSE, pauseIcon);
     pauseBtn.setAttribute('aria-label', 'Pause');
     e.currentTarget.blur();
   });
@@ -730,6 +813,7 @@
   kbdInfoEl.open = !window.matchMedia('(pointer: coarse)').matches;
 
   initLegend();
+  initButtonIcons();
   reset();
   requestAnimationFrame(loop);
 })();

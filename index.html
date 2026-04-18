@@ -115,9 +115,9 @@
   #control-cluster {
     grid-column: 2;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 4px;
-    align-items: center;
+    align-items: stretch;
   }
   #dpad {
     display: grid;
@@ -125,11 +125,11 @@
     grid-template-rows: repeat(3, 36px);
     gap: 2px;
   }
-  #action-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  #action-col {
+    display: flex;
+    flex-direction: column;
     gap: 2px;
-    width: 100%;
+    width: 36px;
   }
   .dpad-btn, .action-btn {
     background: #2a2a3a;
@@ -151,7 +151,8 @@
     transform: scale(0.94);
   }
   .action-btn {
-    height: 28px;
+    flex: 1;
+    min-height: 0;
   }
   .btn-icon {
     image-rendering: pixelated;
@@ -178,7 +179,7 @@
     #hud { width: 100%; max-width: 520px; margin-bottom: 8px; }
     canvas#game {
       width: 100%;
-      max-width: min(100vw - 16px, 100vh - 300px);
+      max-width: min(100vw - 16px, 100vh - 210px);
     }
     #controls {
       max-width: 100%;
@@ -188,12 +189,12 @@
     }
     #kbd-info { display: none; }
     #dpad {
-      grid-template-columns: repeat(3, 52px);
-      grid-template-rows: repeat(3, 52px);
-      gap: 3px;
+      grid-template-columns: repeat(3, 36px);
+      grid-template-rows: repeat(3, 36px);
+      gap: 2px;
     }
-    .action-btn { height: 40px; }
-    .btn-icon { width: 28px; height: 28px; }
+    #action-col { width: 36px; }
+    .btn-icon { width: 22px; height: 22px; }
     #legend { font-size: 8px; gap: 4px; }
     .legend-sprite { width: 22px; height: 22px; }
   }
@@ -218,15 +219,15 @@
       </div>
     </details>
     <div id="control-cluster">
+      <div id="action-col">
+        <button class="action-btn" id="btn-pause" aria-label="Pause"><canvas class="btn-icon" width="24" height="24"></canvas></button>
+        <button class="action-btn" id="btn-restart" aria-label="Restart"><canvas class="btn-icon" width="24" height="24"></canvas></button>
+      </div>
       <div id="dpad" role="group" aria-label="Directional pad">
         <button class="dpad-btn" data-dir="up" aria-label="Up"><canvas class="btn-icon" width="24" height="24"></canvas></button>
         <button class="dpad-btn" data-dir="left" aria-label="Left"><canvas class="btn-icon" width="24" height="24"></canvas></button>
         <button class="dpad-btn" data-dir="right" aria-label="Right"><canvas class="btn-icon" width="24" height="24"></canvas></button>
         <button class="dpad-btn" data-dir="down" aria-label="Down"><canvas class="btn-icon" width="24" height="24"></canvas></button>
-      </div>
-      <div id="action-row">
-        <button class="action-btn" id="btn-pause" aria-label="Pause"><canvas class="btn-icon" width="24" height="24"></canvas></button>
-        <button class="action-btn" id="btn-restart" aria-label="Restart"><canvas class="btn-icon" width="24" height="24"></canvas></button>
       </div>
     </div>
     <div id="legend">

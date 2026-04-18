@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snake 8-bit</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
@@ -148,9 +149,11 @@
   }
   @media (max-width: 640px) {
     body { padding: 8px; box-sizing: border-box; }
-    #hud { width: 100%; max-width: 520px; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    #hud { width: 100%; max-width: 520px; margin-bottom: 8px; }
     canvas#game {
-      max-width: min(100%, 60vh);
+      width: 100%;
+      max-width: min(100vw - 16px, 100vh - 200px);
     }
     #controls {
       max-width: 100%;

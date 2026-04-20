@@ -33,6 +33,15 @@
   let snake, dir, nextDir, foods, score, best, alive, paused, lastTick;
   let level, startTime, pausedAt, pausedTotal;
   let particles, lastFrame;
+  let hintFadeStart = null;
+  let hintDismissed = false;
+  const HINT_FADE_MS = 400;
+
+  function dismissHint() {
+    if (!isNarrowViewport) return;
+    if (hintFadeStart === null) hintFadeStart = performance.now();
+    hintDismissed = true;
+  }
   let pineappleOnlyStart;
   let rescueDelay;
 
@@ -707,7 +716,7 @@
       ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
       ctx.fillStyle = '#e5e7eb';
       ctx.font = "10px 'Press Start 2P', 'Courier New', monospace";
-      ctx.fillText('PRESS R TO RESTART', canvas.width / 2, canvas.height / 2 + 28);
+      ctx.fillText(isNarrowViewport ? 'TAP TO RESTART' : 'PRESS R TO RESTART', canvas.width / 2, canvas.height / 2 + 28);
     } else if (paused) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -718,6 +727,26 @@
     }
 
     drawParticles();
+    drawSwipeHint();
+  }
+
+  function drawSwipeHint() {
+    if (!isNarrowViewport || !alive || paused) return;
+    if (hintDismissed && hintFadeStart === null) return;
+    let alpha = 1;
+    if (hintFadeStart !== null) {
+      const elapsed = performance.now() - hintFadeStart;
+      if (elapsed >= HINT_FADE_MS) return;
+      alpha = 1 - elapsed / HINT_FADE_MS;
+    }
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#8bd17c';
+    ctx.font = `${Math.floor(CELL * 1.1)}px 'Press Start 2P', monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u2190  SWIPE  \u2192', canvas.width / 2, canvas.height / 2);
+    ctx.restore();
   }
 
   function loop(now) {
@@ -759,6 +788,7 @@
   window.addEventListener('keydown', (e) => {
     if (keyMap[e.key]) {
       nextDir = keyMap[e.key];
+      dismissHint();
       e.preventDefault();
     } else if (e.key === ' ') {
       togglePause();
@@ -768,15 +798,22 @@
     }
   });
 
+  function restart() {
+    reset();
+    renderSpriteToCanvas(SPR_BTN_PAUSE, pauseIcon);
+    pauseBtn.setAttribute('aria-label', 'Pause');
+  }
+
   pauseBtn.addEventListener('click', (e) => {
     togglePause();
     e.currentTarget.blur();
   });
   document.getElementById('btn-restart').addEventListener('click', (e) => {
-    reset();
-    renderSpriteToCanvas(SPR_BTN_PAUSE, pauseIcon);
-    pauseBtn.setAttribute('aria-label', 'Pause');
+    restart();
     e.currentTarget.blur();
+  });
+  canvas.addEventListener('click', () => {
+    if (!alive) restart();
   });
 
   const DIR_MAP = {
@@ -789,6 +826,7 @@
   document.querySelectorAll('.dpad-btn').forEach(btn => {
     btn.addEventListener('pointerdown', (e) => {
       nextDir = DIR_MAP[btn.dataset.dir];
+      dismissHint();
       e.preventDefault();
     });
   });
@@ -811,6 +849,7 @@
     } else {
       nextDir = dy > 0 ? DIR_MAP.down : DIR_MAP.up;
     }
+    dismissHint();
   }, { passive: true });
 
   const kbdInfoEl = document.getElementById('kbd-info');

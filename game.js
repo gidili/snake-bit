@@ -4,8 +4,12 @@
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
 
-  const GRID = 24;
-  const CELL = canvas.width / GRID;
+  const isNarrowViewport = window.innerWidth / window.innerHeight < 0.85;
+  const GRID_W = isNarrowViewport ? 18 : 24;
+  const GRID_H = isNarrowViewport ? 28 : 24;
+  const CELL = 26;
+  canvas.width = GRID_W * CELL;
+  canvas.height = GRID_H * CELL;
   const START_TICK_MS = 264;
   const MIN_TICK_MS = 55;
   const TICK_STEP_MS = 12;
@@ -79,8 +83,8 @@
 
   function spawnFood() {
     for (let tries = 0; tries < 200; tries++) {
-      const x = Math.floor(Math.random() * GRID);
-      const y = Math.floor(Math.random() * GRID);
+      const x = Math.floor(Math.random() * GRID_W);
+      const y = Math.floor(Math.random() * GRID_H);
       if (isCellFree(x, y)) {
         const r = Math.random();
         const type = r < PINEAPPLE_CHANCE
@@ -106,15 +110,15 @@
       for (const [dx, dy] of shuffledO) {
         const x = p.x + dx;
         const y = p.y + dy;
-        if (x < 0 || x >= GRID || y < 0 || y >= GRID) continue;
+        if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) continue;
         if (!isCellFree(x, y)) continue;
         foods.push({ x, y, type: 'rat' });
         return true;
       }
     }
     for (let tries = 0; tries < 100; tries++) {
-      const x = Math.floor(Math.random() * GRID);
-      const y = Math.floor(Math.random() * GRID);
+      const x = Math.floor(Math.random() * GRID_W);
+      const y = Math.floor(Math.random() * GRID_H);
       if (isCellFree(x, y)) {
         foods.push({ x, y, type: 'rat' });
         return true;
@@ -162,7 +166,7 @@
 
     const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
-    if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+    if (head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H) {
       alive = false;
       return;
     }
@@ -513,9 +517,9 @@
 
   function drawTongue(headX, headY) {
     const distLeft = headX;
-    const distRight = GRID - 1 - headX;
+    const distRight = GRID_W - 1 - headX;
     const distTop = headY;
-    const distBottom = GRID - 1 - headY;
+    const distBottom = GRID_H - 1 - headY;
     const nearestVertWall = Math.min(distLeft, distRight);
     const nearestHorizWall = Math.min(distTop, distBottom);
     let dir;
@@ -671,8 +675,8 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.fillStyle = '#20202e';
-    for (let i = 0; i < GRID; i++) {
-      for (let j = 0; j < GRID; j++) {
+    for (let i = 0; i < GRID_W; i++) {
+      for (let j = 0; j < GRID_H; j++) {
         if ((i + j) % 2 === 0) ctx.fillRect(i * CELL, j * CELL, CELL, CELL);
       }
     }

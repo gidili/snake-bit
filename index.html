@@ -177,12 +177,12 @@
     body { padding: 8px; box-sizing: border-box; }
     h1 { font-size: 16px; margin: 0 0 10px; }
     #hud {
-      width: min(100vw - 16px, calc((100vh - 210px) * 18 / 22));
+      width: min(100vw - 16px, calc((100vh - 234px) * 18 / 22));
       max-width: none;
       margin-bottom: 8px;
     }
     canvas#game {
-      width: min(100vw - 16px, calc((100vh - 210px) * 18 / 22));
+      width: min(100vw - 16px, calc((100vh - 234px) * 18 / 22));
       max-width: none;
       height: auto;
       aspect-ratio: 18 / 22;
@@ -191,7 +191,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      width: min(100vw - 16px, calc((100vh - 210px) * 18 / 22));
+      width: min(100vw - 16px, calc((100vh - 234px) * 18 / 22));
       max-width: none;
       gap: 0;
       font-size: 7px;
@@ -199,16 +199,16 @@
     #kbd-info { display: none; }
     #control-cluster { display: contents; }
     #dpad {
-      grid-template-columns: repeat(3, 36px);
-      grid-template-rows: repeat(3, 36px);
+      grid-template-columns: repeat(3, 44px);
+      grid-template-rows: repeat(3, 44px);
       gap: 2px;
     }
-    #action-col { width: 36px; height: 112px; }
-    .btn-icon { width: 22px; height: 22px; }
+    #action-col { width: 44px; height: 136px; }
+    .btn-icon { width: 28px; height: 28px; }
     #legend { font-size: 8px; gap: 4px; }
     .legend-sprite {
-      width: min(calc((100vw - 16px) / 18), calc((100vh - 210px) / 22));
-      height: min(calc((100vw - 16px) / 18), calc((100vh - 210px) / 22));
+      width: min(calc((100vw - 16px) / 18), calc((100vh - 234px) / 22));
+      height: min(calc((100vw - 16px) / 18), calc((100vh - 234px) / 22));
     }
   }
 </style>

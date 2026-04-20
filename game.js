@@ -6,7 +6,7 @@
 
   const isNarrowViewport = window.innerWidth / window.innerHeight < 0.85;
   const GRID_W = isNarrowViewport ? 18 : 24;
-  const GRID_H = isNarrowViewport ? 28 : 24;
+  const GRID_H = isNarrowViewport ? 22 : 24;
   const CELL = 26;
   canvas.width = GRID_W * CELL;
   canvas.height = GRID_H * CELL;

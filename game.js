@@ -264,74 +264,74 @@
   };
 
   const SPR_BTN_UP = [
-    '...WW...',
-    '..WWWW..',
-    '.WWWWWW.',
-    'WWWWWWWW',
-    '...WW...',
-    '...WW...',
-    '...WW...',
-    '...WW...',
+    '........',
+    '...YY...',
+    '..YYYY..',
+    '.YYYYYY.',
+    '...YY...',
+    '...YY...',
+    '...YY...',
+    '........',
   ];
   const SPR_BTN_DOWN = [
-    '...WW...',
-    '...WW...',
-    '...WW...',
-    '...WW...',
-    'WWWWWWWW',
-    '.WWWWWW.',
-    '..WWWW..',
-    '...WW...',
+    '........',
+    '...YY...',
+    '...YY...',
+    '...YY...',
+    '.YYYYYY.',
+    '..YYYY..',
+    '...YY...',
+    '........',
   ];
   const SPR_BTN_LEFT = [
-    '...W....',
-    '..WW....',
-    '.WWW....',
-    'WWWWWWWW',
-    'WWWWWWWW',
-    '.WWW....',
-    '..WW....',
-    '...W....',
+    '........',
+    '...Y....',
+    '..YY....',
+    '.YYYYYY.',
+    '.YYYYYY.',
+    '..YY....',
+    '...Y....',
+    '........',
   ];
   const SPR_BTN_RIGHT = [
-    '....W...',
-    '....WW..',
-    '....WWW.',
-    'WWWWWWWW',
-    'WWWWWWWW',
-    '....WWW.',
-    '....WW..',
-    '....W...',
+    '........',
+    '....Y...',
+    '....YY..',
+    '.YYYYYY.',
+    '.YYYYYY.',
+    '....YY..',
+    '....Y...',
+    '........',
   ];
   const SPR_BTN_PAUSE = [
-    '.WW..WW.',
-    '.WW..WW.',
-    '.WW..WW.',
-    '.WW..WW.',
-    '.WW..WW.',
-    '.WW..WW.',
-    '.WW..WW.',
-    '.WW..WW.',
+    '........',
+    '.YY..YY.',
+    '.YY..YY.',
+    '.YY..YY.',
+    '.YY..YY.',
+    '.YY..YY.',
+    '.YY..YY.',
+    '........',
   ];
   const SPR_BTN_PLAY = [
-    '.W......',
-    '.WWW....',
-    '.WWWWW..',
-    '.WWWWWWW',
-    '.WWWWWWW',
-    '.WWWWW..',
-    '.WWW....',
-    '.W......',
+    '........',
+    '..Y.....',
+    '..YYY...',
+    '..YYYYY.',
+    '..YYYYY.',
+    '..YYY...',
+    '..Y.....',
+    '........',
   ];
   const SPR_BTN_RESTART = [
-    '.WWWWW..',
-    'WW...WWW',
-    'W.....W.',
-    'W.......',
-    'W.......',
-    'W......W',
-    '.WW...WW',
-    '..WWWWW.',
+    '........',
+    '.YYYY...',
+    '.Y..Y...',
+    '.Y..Y...',
+    '.YYYY...',
+    '.Y.Y....',
+    '.Y..Y...',
+    '........',
   ];
 
   const SPR_HEAD = [
@@ -599,6 +599,7 @@
     renderSpriteToCanvas(SPR_RAT, document.getElementById('legend-rat'));
     renderSpriteToCanvas(SPR_EGG, document.getElementById('legend-egg'));
     renderSpriteToCanvas(SPR_PINEAPPLE, document.getElementById('legend-pineapple'));
+    renderSpriteToCanvas(SPR_PINEAPPLE, document.getElementById('title-pineapple'));
     document.getElementById('rat-pts').textContent = FOOD_TYPES.rat.value;
     document.getElementById('egg-pts').textContent = FOOD_TYPES.egg.value;
   }

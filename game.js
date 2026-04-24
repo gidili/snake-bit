@@ -15,7 +15,8 @@
   const TICK_STEP_MS = 12;
   const FOOD_PER_LEVEL = 3;
   const SECONDS_PER_LEVEL = 12;
-  const MAX_LEVEL = 15;
+  const RAMP_LEVEL = 15;
+  const LATE_TICK_STEP_MS = 4;
   const MAX_FOOD = 3;
   const EGG_CHANCE = 0.3;
   const PINEAPPLE_CHANCE = 0.15;
@@ -120,11 +121,14 @@
   function computeLevel() {
     const byFood = Math.floor(score / FOOD_PER_LEVEL);
     const byTime = Math.floor(survivalSeconds() / SECONDS_PER_LEVEL);
-    return Math.min(MAX_LEVEL, 1 + Math.min(byFood, byTime));
+    return 1 + Math.min(byFood, byTime);
   }
 
   function currentTickMs() {
-    return Math.max(MIN_TICK_MS, START_TICK_MS - (level - 1) * TICK_STEP_MS);
+    const earlyLevels = Math.min(level - 1, RAMP_LEVEL - 1);
+    const lateLevels = Math.max(0, level - RAMP_LEVEL);
+    const tick = START_TICK_MS - earlyLevels * TICK_STEP_MS - lateLevels * LATE_TICK_STEP_MS;
+    return Math.max(MIN_TICK_MS, tick);
   }
 
   function isCellFree(x, y) {

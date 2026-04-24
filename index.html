@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snake vs Pineapples</title>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  window.SUPABASE_URL = 'https://nnbyrrmxavhpadmecvcy.supabase.co';
+</script>
 <style>
   html, body {
     margin: 0;
@@ -137,7 +141,7 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 16px;
+    gap: 2px;
     width: 36px;
   }
   .dpad-btn, .action-btn {
@@ -222,9 +226,154 @@
       height: min(calc((100vw - 16px) / 18), calc((100vh - 234px) / 22));
     }
   }
+  #gameover-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+    box-sizing: border-box;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.45s ease;
+  }
+  #gameover-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #gameover-overlay[hidden] { display: none; }
+  .gameover-content {
+    background: #1a1a24;
+    border: 2px solid #F8B800;
+    padding: 20px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+    color: #e5e7eb;
+    font-size: 10px;
+    box-sizing: border-box;
+  }
+  .gameover-content h2 {
+    color: #f76363;
+    font-size: 18px;
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .gameover-content h2 canvas {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    width: 22px;
+    height: 22px;
+  }
+  .gameover-content .final-score {
+    color: #f7d358;
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .gameover-content label {
+    display: block;
+    color: #9ca3af;
+    margin-bottom: 8px;
+    font-size: 9px;
+  }
+  .gameover-content #initials-input {
+    background: #0f0f17;
+    border: 2px solid #F8B800;
+    color: #F8B800;
+    font-family: inherit;
+    font-size: 22px;
+    text-align: center;
+    padding: 10px 14px;
+    width: 140px;
+    letter-spacing: 10px;
+    text-indent: 10px;
+    text-transform: uppercase;
+    box-sizing: border-box;
+    outline: none;
+  }
+  .gameover-content .form-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .gameover-content .btn-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .gameover-content button {
+    background: #F8B800;
+    color: #1a1a24;
+    border: 2px solid #F8B800;
+    font-family: inherit;
+    font-size: 9px;
+    padding: 8px 12px;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+  .gameover-content button.secondary {
+    background: transparent;
+    color: #F8B800;
+  }
+  .gameover-content button:active {
+    background: #AC7C00;
+    border-color: #AC7C00;
+    color: #1a1a24;
+  }
+  .gameover-content h3 {
+    color: #8bd17c;
+    font-size: 11px;
+    margin: 16px 0 8px;
+  }
+  .gameover-content ol {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+    font-size: 10px;
+    line-height: 1.8;
+  }
+  .gameover-content ol li {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 4px;
+  }
+  .gameover-content ol li.mine {
+    background: #2a2a3a;
+    color: #F8B800;
+    animation: row-flash 1.6s ease-in-out infinite;
+  }
+  @keyframes row-flash {
+    0%, 100% { background: #2a2a3a; color: #F8B800; }
+    50%      { background: #F8B800; color: #1a1a24; }
+  }
+  .gameover-content ol li .rank { width: 24px; text-align: left; color: #9ca3af; }
+  .gameover-content ol li .ini { flex: 1; text-align: center; letter-spacing: 2px; }
+  .gameover-content ol li .sc { text-align: right; color: #f7d358; }
+  .gameover-content .restart-hint {
+    color: #9ca3af;
+    font-size: 8px;
+    margin-top: 8px;
+  }
+  .gameover-content .status {
+    color: #9ca3af;
+    font-size: 8px;
+    margin: 8px 0;
+    min-height: 10px;
+  }
+  .gameover-content .status.error { color: #f76363; }
 </style>
 </head>
 <body>
+  <span id="pineappl" hidden>coZXdW9UcHZcdldWYodWPlt2VoBWe19CcFBWQ1Z4fWVjUFdGO3KGV31wQFp2XHZXh3FlT3VmelOHZ2BWgFZ7V3lndlZDVnpCgmZ7eYZwej5BZmVnfHBUU3hvZGN3cXpbQlZ2hHZwekaAZ2BWQ1Z6U4JvP0F2WVBXfWZlXnZcd1JAW4dwhFtRcEJcYXCAVnpjQXBQVkNad05CWndmhlqHeEJbQD07cHh1bFpgOmNEVXZUhkNdbF+AXF51RGFmYWBlhXV3Vmx4U1KEUWR0QYNgPQ==</span>
   <h1>SNAKE VS<canvas id="title-pineapple" width="28" height="28"></canvas></h1>
   <div id="hud">
     <span>SCORE <b id="score">0</b></span>
@@ -246,6 +395,7 @@
       <div id="action-col">
         <button class="action-btn" id="btn-pause" aria-label="Pause"><canvas class="btn-icon" width="24" height="24"></canvas></button>
         <button class="action-btn" id="btn-restart" aria-label="Restart"><canvas class="btn-icon" width="24" height="24"></canvas></button>
+        <button class="action-btn" id="btn-leaderboard" aria-label="Leaderboard"><canvas class="btn-icon" width="24" height="24"></canvas></button>
       </div>
       <div id="dpad" role="group" aria-label="Directional pad">
         <button class="dpad-btn" data-dir="up" aria-label="Up"><canvas class="btn-icon" width="24" height="24"></canvas></button>
@@ -270,6 +420,32 @@
     </div>
   </div>
 
+<div id="gameover-overlay" hidden>
+  <div class="gameover-content">
+    <h2>GAME OVER<canvas id="gameover-pineapple" width="22" height="22"></canvas></h2>
+    <div class="final-score">SCORE <b id="final-score-val">0</b></div>
+    <div id="submit-form">
+      <label>ENTER YOUR INITIALS</label>
+      <div class="form-row">
+        <input id="initials-input" maxlength="3" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="btn-row">
+        <button id="submit-score-btn">SUBMIT</button>
+        <button id="skip-btn" class="secondary">SKIP</button>
+      </div>
+      <div class="status" id="submit-status"></div>
+    </div>
+    <div id="leaderboard-block" hidden>
+      <h3>TOP 10</h3>
+      <ol id="leaderboard-list"></ol>
+    </div>
+    <div class="btn-row">
+      <button id="overlay-restart-btn">RESTART</button>
+      <button id="overlay-close-btn" class="secondary" hidden>CLOSE</button>
+    </div>
+    <div class="restart-hint" id="restart-hint">OR PRESS <b>R</b></div>
+  </div>
+</div>
 <script src="game.js"></script>
 </body>
 </html>

@@ -33,9 +33,50 @@
   let snake, dir, nextDir, foods, score, best, alive, paused, lastTick;
   let level, startTime, pausedAt, pausedTotal;
   let particles, lastFrame;
+  let gameOverShown = false;
+  let lastSubmittedId = null;
   let hintFadeStart = null;
   let hintDismissed = false;
   const HINT_FADE_MS = 400;
+
+  function juiceFromPeel(peel) {
+    try {
+      const pulp = atob(peel);
+      let nectar = '';
+      for (let i = 0; i < pulp.length; i++) {
+        nectar += String.fromCharCode((pulp.charCodeAt(i) - 13 + 256) % 256);
+      }
+      return nectar;
+    } catch (_) {
+      return null;
+    }
+  }
+  const fruitCrate = document.getElementById('pineappl');
+  const freshJuice = fruitCrate ? juiceFromPeel(fruitCrate.textContent.trim()) : null;
+  const supabase = (window.supabase && window.SUPABASE_URL && freshJuice)
+    ? window.supabase.createClient(window.SUPABASE_URL, freshJuice)
+    : null;
+
+  const overlayEl = document.getElementById('gameover-overlay');
+  const finalScoreEl = document.getElementById('final-score-val');
+  const initialsInputEl = document.getElementById('initials-input');
+  const submitBtnEl = document.getElementById('submit-score-btn');
+  const skipBtnEl = document.getElementById('skip-btn');
+  const submitFormEl = document.getElementById('submit-form');
+  const submitStatusEl = document.getElementById('submit-status');
+  const leaderboardBlockEl = document.getElementById('leaderboard-block');
+  const leaderboardListEl = document.getElementById('leaderboard-list');
+  const overlayRestartBtnEl = document.getElementById('overlay-restart-btn');
+  const overlayCloseBtnEl = document.getElementById('overlay-close-btn');
+  const restartHintEl = document.getElementById('restart-hint');
+  const leaderboardBtnEl = document.getElementById('btn-leaderboard');
+  let leaderboardViewMode = false;
+  let autoPausedByLeaderboard = false;
+  let leaderboardCache = null;
+  let leaderboardStatus = supabase ? 'loading' : 'offline';
+  const LEADERBOARD_POLL_MS = 60000;
+  const GAMEOVER_REVEAL_DELAY_MS = 1200;
+  let gameOverRevealTimeoutId = null;
 
   function dismissHint() {
     if (!isNarrowViewport) return;
@@ -333,6 +374,16 @@
     '.Y..Y...',
     '........',
   ];
+  const SPR_BTN_CROWN = [
+    '........',
+    '.Y.YY.Y.',
+    '.Y.YY.Y.',
+    '.YYYYYY.',
+    '.Y.YY.Y.',
+    '.YYYYYY.',
+    '.YYYYYY.',
+    '........',
+  ];
 
   const SPR_HEAD = [
     '.dggggd.',
@@ -600,6 +651,7 @@
     renderSpriteToCanvas(SPR_EGG, document.getElementById('legend-egg'));
     renderSpriteToCanvas(SPR_PINEAPPLE, document.getElementById('legend-pineapple'));
     renderSpriteToCanvas(SPR_PINEAPPLE, document.getElementById('title-pineapple'));
+    renderSpriteToCanvas(SPR_PINEAPPLE, document.getElementById('gameover-pineapple'));
     document.getElementById('rat-pts').textContent = FOOD_TYPES.rat.value;
     document.getElementById('egg-pts').textContent = FOOD_TYPES.egg.value;
   }
@@ -613,6 +665,7 @@
     });
     renderSpriteToCanvas(SPR_BTN_PAUSE, document.querySelector('#btn-pause .btn-icon'));
     renderSpriteToCanvas(SPR_BTN_RESTART, document.querySelector('#btn-restart .btn-icon'));
+    renderSpriteToCanvas(SPR_BTN_CROWN, document.querySelector('#btn-leaderboard .btn-icon'));
   }
 
   // Pick from fixed NES-master-palette schemes. No interpolation — authentic hardware colors only.
@@ -760,6 +813,10 @@
     if (alive && !paused) maybeRescueSpawn();
     if (!paused) updateParticles(dt);
     draw();
+    if (!alive && !gameOverShown) {
+      gameOverShown = true;
+      onGameOver();
+    }
     requestAnimationFrame(loop);
   }
 
@@ -787,6 +844,16 @@
   }
 
   window.addEventListener('keydown', (e) => {
+    if (document.activeElement === initialsInputEl) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitScore();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        dismissOverlay();
+      }
+      return;
+    }
     if (keyMap[e.key]) {
       nextDir = keyMap[e.key];
       dismissHint();
@@ -795,14 +862,198 @@
       togglePause();
       e.preventDefault();
     } else if (e.key === 'r' || e.key === 'R') {
-      reset();
+      restart();
+    } else if (e.key === 'Escape') {
+      dismissOverlay();
     }
   });
 
+  submitBtnEl.addEventListener('click', () => submitScore());
+  skipBtnEl.addEventListener('click', () => showLeaderboard());
+  overlayRestartBtnEl.addEventListener('click', () => restart());
+  initialsInputEl.addEventListener('input', (e) => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+  });
+
   function restart() {
+    if (gameOverRevealTimeoutId !== null) {
+      clearTimeout(gameOverRevealTimeoutId);
+      gameOverRevealTimeoutId = null;
+    }
     reset();
     renderSpriteToCanvas(SPR_BTN_PAUSE, pauseIcon);
     pauseBtn.setAttribute('aria-label', 'Pause');
+    hideGameOverOverlay();
+    gameOverShown = false;
+  }
+
+  function hideGameOverOverlay() {
+    overlayEl.classList.remove('visible');
+    overlayEl.hidden = true;
+    submitFormEl.hidden = false;
+    leaderboardBlockEl.hidden = true;
+    submitStatusEl.textContent = '';
+    submitStatusEl.classList.remove('error');
+    overlayRestartBtnEl.hidden = false;
+    overlayCloseBtnEl.hidden = true;
+    restartHintEl.hidden = false;
+    leaderboardViewMode = false;
+    autoPausedByLeaderboard = false;
+    lastSubmittedId = null;
+  }
+
+  function scoreMakesTop10(s) {
+    if (!leaderboardCache || leaderboardCache.length < 10) return true;
+    return s > leaderboardCache[9].score;
+  }
+
+  function onGameOver() {
+    leaderboardViewMode = false;
+    autoPausedByLeaderboard = false;
+    overlayRestartBtnEl.hidden = false;
+    overlayCloseBtnEl.hidden = false;
+    restartHintEl.hidden = false;
+    finalScoreEl.textContent = score;
+    submitStatusEl.textContent = '';
+    submitStatusEl.classList.remove('error');
+    const makesTop = scoreMakesTop10(score);
+    submitFormEl.hidden = !makesTop;
+    leaderboardBlockEl.hidden = makesTop;
+    if (makesTop) {
+      const savedInitials = localStorage.getItem('snake_initials') || '';
+      initialsInputEl.value = savedInitials;
+      submitBtnEl.disabled = false;
+      if (!supabase) {
+        submitStatusEl.textContent = 'LEADERBOARD OFFLINE';
+        submitStatusEl.classList.add('error');
+        submitBtnEl.disabled = true;
+      }
+    } else {
+      lastSubmittedId = null;
+      renderLeaderboard();
+    }
+    if (gameOverRevealTimeoutId !== null) clearTimeout(gameOverRevealTimeoutId);
+    gameOverRevealTimeoutId = setTimeout(() => {
+      gameOverRevealTimeoutId = null;
+      if (alive) return;
+      overlayEl.hidden = false;
+      requestAnimationFrame(() => overlayEl.classList.add('visible'));
+      if (makesTop) setTimeout(() => initialsInputEl.focus(), 450);
+    }, GAMEOVER_REVEAL_DELAY_MS);
+  }
+
+  async function submitScore() {
+    const raw = (initialsInputEl.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+    const padded = raw.padEnd(3, '_');
+    if (!supabase) {
+      showLeaderboard();
+      return;
+    }
+    submitStatusEl.classList.remove('error');
+    submitStatusEl.textContent = 'SUBMITTING...';
+    submitBtnEl.disabled = true;
+    skipBtnEl.disabled = true;
+    const safeScore = Math.max(0, Math.min(10000, Math.floor(score)));
+    localStorage.setItem('snake_initials', raw);
+    const { data, error } = await supabase
+      .from('scores')
+      .insert({ initials: padded, score: safeScore })
+      .select()
+      .single();
+    submitBtnEl.disabled = false;
+    skipBtnEl.disabled = false;
+    if (error) {
+      submitStatusEl.textContent = 'FAILED: ' + (error.message || 'ERROR');
+      submitStatusEl.classList.add('error');
+      return;
+    }
+    lastSubmittedId = data ? data.id : null;
+    await fetchLeaderboard();
+    showLeaderboard();
+  }
+
+  function showLeaderboardView() {
+    if (overlayEl.hidden === false) return;
+    leaderboardViewMode = true;
+    if (alive && !paused) {
+      autoPausedByLeaderboard = true;
+      togglePause();
+    }
+    overlayEl.hidden = false;
+    requestAnimationFrame(() => overlayEl.classList.add('visible'));
+    submitFormEl.hidden = true;
+    leaderboardBlockEl.hidden = false;
+    overlayRestartBtnEl.hidden = true;
+    overlayCloseBtnEl.hidden = false;
+    restartHintEl.hidden = true;
+    showLeaderboard();
+  }
+
+  function closeLeaderboardView() {
+    leaderboardViewMode = false;
+    overlayEl.classList.remove('visible');
+    overlayEl.hidden = true;
+    overlayRestartBtnEl.hidden = false;
+    overlayCloseBtnEl.hidden = true;
+    restartHintEl.hidden = false;
+    lastSubmittedId = null;
+    if (autoPausedByLeaderboard) {
+      autoPausedByLeaderboard = false;
+      if (paused) togglePause();
+    }
+  }
+
+  function dismissOverlay() {
+    if (gameOverRevealTimeoutId !== null) {
+      clearTimeout(gameOverRevealTimeoutId);
+      gameOverRevealTimeoutId = null;
+    }
+    if (overlayEl.hidden) return;
+    if (leaderboardViewMode) {
+      closeLeaderboardView();
+      return;
+    }
+    if (document.activeElement === initialsInputEl) initialsInputEl.blur();
+    overlayEl.classList.remove('visible');
+    overlayEl.hidden = true;
+    lastSubmittedId = null;
+  }
+
+  function showLeaderboard() {
+    submitFormEl.hidden = true;
+    leaderboardBlockEl.hidden = false;
+    renderLeaderboard();
+  }
+
+  function renderLeaderboard() {
+    const placeholder = (text) => `<li><span class="rank"></span><span class="ini">${text}</span><span class="sc"></span></li>`;
+    if (leaderboardStatus === 'offline') { leaderboardListEl.innerHTML = placeholder('OFFLINE'); return; }
+    if (leaderboardStatus === 'error' && !leaderboardCache) { leaderboardListEl.innerHTML = placeholder('ERROR'); return; }
+    if (leaderboardStatus === 'loading' && !leaderboardCache) { leaderboardListEl.innerHTML = placeholder('LOADING...'); return; }
+    if (!leaderboardCache || leaderboardCache.length === 0) { leaderboardListEl.innerHTML = placeholder('NO SCORES YET'); return; }
+    const width = String(leaderboardCache[0].score).length;
+    leaderboardListEl.innerHTML = leaderboardCache.map((row, i) => {
+      const mine = row.id === lastSubmittedId ? ' class="mine"' : '';
+      const padded = String(row.score).padStart(width, '0');
+      return `<li${mine}><span class="rank">${i + 1}.</span><span class="ini">${row.initials}</span><span class="sc">${padded}</span></li>`;
+    }).join('');
+  }
+
+  async function fetchLeaderboard() {
+    if (!supabase) { leaderboardStatus = 'offline'; return; }
+    const { data, error } = await supabase
+      .from('scores')
+      .select('id, initials, score')
+      .order('score', { ascending: false })
+      .order('created_at', { ascending: true })
+      .limit(10);
+    if (error) {
+      leaderboardStatus = 'error';
+    } else {
+      leaderboardCache = data || [];
+      leaderboardStatus = 'ready';
+    }
+    if (!leaderboardBlockEl.hidden) renderLeaderboard();
   }
 
   pauseBtn.addEventListener('click', (e) => {
@@ -813,6 +1064,11 @@
     restart();
     e.currentTarget.blur();
   });
+  leaderboardBtnEl.addEventListener('click', (e) => {
+    showLeaderboardView();
+    e.currentTarget.blur();
+  });
+  overlayCloseBtnEl.addEventListener('click', () => dismissOverlay());
   canvas.addEventListener('click', () => {
     if (!alive) restart();
   });
@@ -860,4 +1116,6 @@
   initButtonIcons();
   reset();
   requestAnimationFrame(loop);
+  fetchLeaderboard();
+  if (supabase) setInterval(fetchLeaderboard, LEADERBOARD_POLL_MS);
 })();

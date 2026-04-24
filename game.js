@@ -53,8 +53,10 @@
   }
   const fruitCrate = document.getElementById('pineappl');
   const freshJuice = fruitCrate ? juiceFromPeel(fruitCrate.textContent.trim()) : null;
-  const supabase = (window.supabase && window.SUPABASE_URL && freshJuice)
-    ? window.supabase.createClient(window.SUPABASE_URL, freshJuice)
+  const [zest, pulp] = (freshJuice || '|').split('|');
+  const blenderLib = window.supabase;
+  const juicer = (blenderLib && zest && pulp)
+    ? blenderLib.createClient(zest, pulp)
     : null;
 
   const overlayEl = document.getElementById('gameover-overlay');
@@ -73,7 +75,7 @@
   let leaderboardViewMode = false;
   let autoPausedByLeaderboard = false;
   let leaderboardCache = null;
-  let leaderboardStatus = supabase ? 'loading' : 'offline';
+  let leaderboardStatus = juicer ? 'loading' : 'offline';
   const LEADERBOARD_POLL_MS = 60000;
   const GAMEOVER_REVEAL_DELAY_MS = 1200;
   let gameOverRevealTimeoutId = null;
@@ -923,7 +925,7 @@
       const savedInitials = localStorage.getItem('snake_initials') || '';
       initialsInputEl.value = savedInitials;
       submitBtnEl.disabled = false;
-      if (!supabase) {
+      if (!juicer) {
         submitStatusEl.textContent = 'LEADERBOARD OFFLINE';
         submitStatusEl.classList.add('error');
         submitBtnEl.disabled = true;
@@ -945,7 +947,7 @@
   async function submitScore() {
     const raw = (initialsInputEl.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
     const padded = raw.padEnd(3, '_');
-    if (!supabase) {
+    if (!juicer) {
       showLeaderboard();
       return;
     }
@@ -955,7 +957,7 @@
     skipBtnEl.disabled = true;
     const safeScore = Math.max(0, Math.min(10000, Math.floor(score)));
     localStorage.setItem('snake_initials', raw);
-    const { data, error } = await supabase
+    const { data, error } = await juicer
       .from('scores')
       .insert({ initials: padded, score: safeScore })
       .select()
@@ -1040,8 +1042,8 @@
   }
 
   async function fetchLeaderboard() {
-    if (!supabase) { leaderboardStatus = 'offline'; return; }
-    const { data, error } = await supabase
+    if (!juicer) { leaderboardStatus = 'offline'; return; }
+    const { data, error } = await juicer
       .from('scores')
       .select('id, initials, score')
       .order('score', { ascending: false })
@@ -1117,5 +1119,5 @@
   reset();
   requestAnimationFrame(loop);
   fetchLeaderboard();
-  if (supabase) setInterval(fetchLeaderboard, LEADERBOARD_POLL_MS);
+  if (juicer) setInterval(fetchLeaderboard, LEADERBOARD_POLL_MS);
 })();

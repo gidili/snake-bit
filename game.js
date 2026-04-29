@@ -809,9 +809,53 @@
     ctx.restore();
   }
 
+  let prevGamepadButtons = [];
+  function pollGamepad() {
+    const pads = (typeof navigator.getGamepads === 'function') ? navigator.getGamepads() : [];
+    let pad = null;
+    for (let i = 0; i < pads.length; i++) {
+      if (pads[i]) { pad = pads[i]; break; }
+    }
+    if (!pad) { prevGamepadButtons = []; return; }
+    const pressed = (i) => !!(pad.buttons[i] && pad.buttons[i].pressed);
+    const justPressed = (i) => pressed(i) && !prevGamepadButtons[i];
+    let gpDir = null;
+    if (pressed(12)) gpDir = { x: 0, y: -1 };
+    else if (pressed(13)) gpDir = { x: 0, y: 1 };
+    else if (pressed(14)) gpDir = { x: -1, y: 0 };
+    else if (pressed(15)) gpDir = { x: 1, y: 0 };
+    else {
+      const ax = pad.axes[0] || 0;
+      const ay = pad.axes[1] || 0;
+      const dz = 0.5;
+      if (Math.abs(ax) > Math.abs(ay)) {
+        if (ax > dz) gpDir = { x: 1, y: 0 };
+        else if (ax < -dz) gpDir = { x: -1, y: 0 };
+      } else {
+        if (ay > dz) gpDir = { x: 0, y: 1 };
+        else if (ay < -dz) gpDir = { x: 0, y: -1 };
+      }
+    }
+    const inputFocused = document.activeElement === initialsInputEl;
+    if (gpDir && !inputFocused) {
+      nextDir = gpDir;
+      dismissHint();
+    }
+    if (inputFocused) {
+      if (justPressed(0)) submitScore();
+      if (justPressed(1)) dismissOverlay();
+    } else {
+      if (justPressed(9)) togglePause();
+      if (justPressed(0)) restart();
+      if (justPressed(1)) dismissOverlay();
+    }
+    prevGamepadButtons = pad.buttons.map(b => !!b.pressed);
+  }
+
   function loop(now) {
     const dt = Math.min(0.05, (now - lastFrame) / 1000);
     lastFrame = now;
+    pollGamepad();
     if (alive && !paused && now - lastTick >= currentTickMs()) {
       step();
       lastTick = now;

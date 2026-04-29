@@ -18,8 +18,8 @@
   const RAMP_LEVEL = 15;
   const LATE_TICK_STEP_MS = 4;
   const MAX_FOOD = 3;
-  const EGG_CHANCE = 0.3;
-  const PINEAPPLE_CHANCE = 0.15;
+  const EGG_CHANCE = 0.25;
+  const PINEAPPLE_CHANCE = 0.25;
   const LEVEL_UP_BONUS = 2;
   const RESCUE_DELAY_MIN = 3;
   const RESCUE_DELAY_MAX = 8;
@@ -213,11 +213,10 @@
     return 2;
   }
 
-  function detectEnclosedPineapples() {
-    if (snake.length < 8) return [];
+  function detectEnclosedFoods() {
+    if (snake.length < 8 || foods.length === 0) return [];
     let hasInterior = false;
     for (const f of foods) {
-      if (f.type !== 'pineapple') continue;
       if (f.x > 0 && f.x < GRID_W - 1 && f.y > 0 && f.y < GRID_H - 1) {
         hasInterior = true;
         break;
@@ -268,24 +267,28 @@
 
     const enclosed = [];
     for (const f of foods) {
-      if (f.type !== 'pineapple') continue;
       if (!visited[f.y * GRID_W + f.x]) enclosed.push(f);
     }
     return enclosed;
   }
 
-  function explodeEnclosedPineapples() {
-    const enclosed = detectEnclosedPineapples();
+  function explodeEnclosedFoods() {
+    const enclosed = detectEnclosedFoods();
     if (enclosed.length === 0) return;
-    for (const p of enclosed) {
-      spawnExplosion(p.x, p.y);
-      score += 10;
-      const idx = foods.indexOf(p);
+    for (const f of enclosed) {
+      if (f.type === 'pineapple') {
+        spawnExplosion(f.x, f.y);
+        score += 10;
+      } else {
+        score += FOOD_TYPES[f.type].value;
+      }
+      const idx = foods.indexOf(f);
       if (idx !== -1) foods.splice(idx, 1);
-      let toSpawn = rollSpawnCount() + rollSpawnCount();
-      if (foods.length === 0 && toSpawn === 0) toSpawn = 1;
-      for (let i = 0; i < toSpawn; i++) spawnFood();
     }
+    let toSpawn = 0;
+    for (let i = 0; i < enclosed.length; i++) toSpawn += rollSpawnCount();
+    if (foods.length === 0 && toSpawn === 0) toSpawn = 1;
+    for (let i = 0; i < toSpawn; i++) spawnFood();
     scoreEl.textContent = score;
     if (score > best) {
       best = score;
@@ -337,7 +340,7 @@
       snake.pop();
     }
 
-    explodeEnclosedPineapples();
+    explodeEnclosedFoods();
 
     const newLevel = computeLevel();
     if (newLevel > level) {

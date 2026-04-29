@@ -213,6 +213,87 @@
     return 2;
   }
 
+  function detectEnclosedPineapples() {
+    if (snake.length < 8) return [];
+    let hasInterior = false;
+    for (const f of foods) {
+      if (f.type !== 'pineapple') continue;
+      if (f.x > 0 && f.x < GRID_W - 1 && f.y > 0 && f.y < GRID_H - 1) {
+        hasInterior = true;
+        break;
+      }
+    }
+    if (!hasInterior) return [];
+
+    const blocked = new Uint8Array(GRID_W * GRID_H);
+    for (const s of snake) blocked[s.y * GRID_W + s.x] = 1;
+    const visited = new Uint8Array(GRID_W * GRID_H);
+    const queue = [];
+
+    for (let x = 0; x < GRID_W; x++) {
+      const top = x;
+      const bot = (GRID_H - 1) * GRID_W + x;
+      if (!blocked[top]) { visited[top] = 1; queue.push(top); }
+      if (!blocked[bot]) { visited[bot] = 1; queue.push(bot); }
+    }
+    for (let y = 1; y < GRID_H - 1; y++) {
+      const left = y * GRID_W;
+      const right = y * GRID_W + GRID_W - 1;
+      if (!blocked[left]) { visited[left] = 1; queue.push(left); }
+      if (!blocked[right]) { visited[right] = 1; queue.push(right); }
+    }
+
+    let head = 0;
+    while (head < queue.length) {
+      const idx = queue[head++];
+      const x = idx % GRID_W;
+      const y = (idx - x) / GRID_W;
+      if (x > 0) {
+        const ni = idx - 1;
+        if (!visited[ni] && !blocked[ni]) { visited[ni] = 1; queue.push(ni); }
+      }
+      if (x < GRID_W - 1) {
+        const ni = idx + 1;
+        if (!visited[ni] && !blocked[ni]) { visited[ni] = 1; queue.push(ni); }
+      }
+      if (y > 0) {
+        const ni = idx - GRID_W;
+        if (!visited[ni] && !blocked[ni]) { visited[ni] = 1; queue.push(ni); }
+      }
+      if (y < GRID_H - 1) {
+        const ni = idx + GRID_W;
+        if (!visited[ni] && !blocked[ni]) { visited[ni] = 1; queue.push(ni); }
+      }
+    }
+
+    const enclosed = [];
+    for (const f of foods) {
+      if (f.type !== 'pineapple') continue;
+      if (!visited[f.y * GRID_W + f.x]) enclosed.push(f);
+    }
+    return enclosed;
+  }
+
+  function explodeEnclosedPineapples() {
+    const enclosed = detectEnclosedPineapples();
+    if (enclosed.length === 0) return;
+    for (const p of enclosed) {
+      spawnExplosion(p.x, p.y);
+      score += 10;
+      const idx = foods.indexOf(p);
+      if (idx !== -1) foods.splice(idx, 1);
+      let toSpawn = rollSpawnCount() + rollSpawnCount();
+      if (foods.length === 0 && toSpawn === 0) toSpawn = 1;
+      for (let i = 0; i < toSpawn; i++) spawnFood();
+    }
+    scoreEl.textContent = score;
+    if (score > best) {
+      best = score;
+      bestEl.textContent = best;
+      localStorage.setItem('snake_best', best);
+    }
+  }
+
   function step() {
     if (!alive || paused) return;
 
@@ -255,6 +336,8 @@
     } else {
       snake.pop();
     }
+
+    explodeEnclosedPineapples();
 
     const newLevel = computeLevel();
     if (newLevel > level) {

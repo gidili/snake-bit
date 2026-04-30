@@ -54,7 +54,22 @@
     max-width: min(100%, 624px);
     height: auto;
     touch-action: none;
+    position: relative;
+    z-index: 1;
   }
+  .game-wrapper {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    margin: 12px 0;
+  }
+  canvas#game-fire {
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+    display: none;
+  }
+  .game-wrapper.fire-on canvas#game-fire { display: block; }
   #legend {
     grid-column: 3;
     justify-self: end;
@@ -86,7 +101,7 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     width: 100%;
-    max-width: 520px;
+    max-width: 600px;
     margin-top: 14px;
     gap: 16px;
     font-size: 8px;
@@ -197,6 +212,9 @@
       max-width: none;
       height: auto;
       aspect-ratio: 18 / 22;
+    }
+    .game-wrapper {
+      margin: 4px 0 16px;
     }
     #controls {
       display: flex;
@@ -377,20 +395,21 @@
     <span>LEVEL <b id="level">1</b></span>
     <span>BEST <b id="best">0</b></span>
   </div>
-  <canvas id="game" width="624" height="624"></canvas>
+  <div class="game-wrapper" id="game-wrapper">
+    <canvas id="game-fire"></canvas>
+    <canvas id="game" width="624" height="624"></canvas>
+  </div>
   <div id="controls">
     <details id="kbd-info">
       <summary>Controls</summary>
       <div class="kbd-body">
-        <div>Move <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></div>
-        <div>or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+        <div>Move <kbd>↑↓←→</kbd> / <kbd>WASD</kbd></div>
         <div>Pause <kbd>Space</kbd></div>
         <div>Restart <kbd>R</kbd></div>
         <div>Gamepad:</div>
-        <div>Move <kbd>D-pad</kbd> or <kbd>Stick</kbd></div>
+        <div>Move <kbd>D-pad</kbd> / <kbd>Stick</kbd></div>
         <div>Pause <kbd>Start</kbd></div>
         <div>Restart <kbd>A</kbd></div>
-        <div>Close <kbd>B</kbd></div>
       </div>
     </details>
     <div id="control-cluster">

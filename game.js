@@ -10,6 +10,21 @@
   const CELL = 26;
   canvas.width = GRID_W * CELL;
   canvas.height = GRID_H * CELL;
+
+  const fireCanvas = document.getElementById('game-fire');
+  const fireCtx = fireCanvas.getContext('2d');
+  const FIRE_GRID_W = GRID_W + 2;
+  const FIRE_GRID_H = GRID_H + 2;
+  fireCanvas.width = FIRE_GRID_W * CELL;
+  fireCanvas.height = FIRE_GRID_H * CELL;
+  fireCanvas.style.width = (FIRE_GRID_W / GRID_W * 100) + '%';
+  fireCanvas.style.height = (FIRE_GRID_H / GRID_H * 100) + '%';
+  fireCanvas.style.left = (-1 / GRID_W * 100) + '%';
+  fireCanvas.style.top = (-1 / GRID_H * 100) + '%';
+  const gameWrapperEl = document.getElementById('game-wrapper');
+  const FIRE_UNLOCK_SCORE = 1000;
+  const FIRE_FRAME_MS = 120;
+  let fireUnlocked = false;
   const START_TICK_MS = 264;
   const MIN_TICK_MS = 55;
   const TICK_STEP_MS = 12;
@@ -112,6 +127,9 @@
     lastFrame = performance.now();
     particles = [];
     pineappleOnlyStart = null;
+    fireUnlocked = false;
+    gameWrapperEl.classList.remove('fire-on');
+    fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
   }
 
   function survivalSeconds() {
@@ -270,6 +288,7 @@
       level = newLevel;
       levelEl.textContent = level;
     }
+    if (!fireUnlocked && score >= FIRE_UNLOCK_SCORE) unlockFire();
   }
 
   // --- Sprite system -----------------------------------------------------
@@ -305,8 +324,11 @@
     T: '#3A2412',   // outline (very dark brown)
     t: '#6B4422',   // body (saddle brown)
     i: '#A0704A',   // highlight (tan)
-    // dead tongue (bright red)
+    // dead tongue (bright red) — also reused for fire
     R: '#F83800',
+    // fire
+    F: '#FC9838',   // orange
+    f: '#A82800',   // deep red
     '.': null,
   };
 
@@ -389,6 +411,49 @@
     '.YYYYYY.',
     '.YYYYYY.',
     '........',
+  ];
+
+  const SPR_FIRE = [
+    [
+      '........',
+      '....Y...',
+      '...YF...',
+      '..YFR...',
+      '..FRRf..',
+      '.FRRRR..',
+      'fRRRRRR.',
+      'RRRRRRR.',
+    ],
+    [
+      '....W...',
+      '....Y...',
+      '...YF...',
+      '..YFR...',
+      '..FRRf..',
+      '.FRRRRf.',
+      'fRRRRRR.',
+      'RRRRRRR.',
+    ],
+    [
+      '........',
+      '....Y...',
+      '...FY...',
+      '...FF...',
+      '..FRRf..',
+      '..FRRRf.',
+      '.fRRRRR.',
+      'RRRRRRR.',
+    ],
+    [
+      '........',
+      '...Y....',
+      '...YF...',
+      '..YFF...',
+      '..FRRf..',
+      '.FRRRR..',
+      'fRRRRRf.',
+      'RRRRRRR.',
+    ],
   ];
 
   const SPR_HEAD = [
@@ -551,6 +616,46 @@
     const x1 = Math.floor(baseX + (x + w) * SP_PX);
     const y1 = Math.floor(baseY + (y + h) * SP_PX);
     return [x0, y0, x1 - x0, y1 - y0];
+  }
+
+  function drawFireSprite(sprite, cellX, cellY, rotation) {
+    fireCtx.save();
+    fireCtx.translate(cellX * CELL + CELL / 2, cellY * CELL + CELL / 2);
+    if (rotation) fireCtx.rotate(rotation);
+    fireCtx.translate(-CELL / 2, -CELL / 2);
+    for (let y = 0; y < SP_GRID; y++) {
+      const row = sprite[y];
+      for (let x = 0; x < SP_GRID; x++) {
+        const color = palette[row[x]];
+        if (color) {
+          fireCtx.fillStyle = color;
+          fireCtx.fillRect(x * SP_PX, y * SP_PX, SP_PX, SP_PX);
+        }
+      }
+    }
+    fireCtx.restore();
+  }
+
+  function drawFire() {
+    if (!fireUnlocked) return;
+    fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
+    const f = Math.floor(performance.now() / FIRE_FRAME_MS);
+    const n = SPR_FIRE.length;
+    const HALF_PI = Math.PI / 2;
+    for (let x = 1; x < FIRE_GRID_W - 1; x++) {
+      drawFireSprite(SPR_FIRE[(x + f) % n], x, 0, 0);
+      drawFireSprite(SPR_FIRE[(x * 3 + f + 1) % n], x, FIRE_GRID_H - 1, Math.PI);
+    }
+    for (let y = 1; y < FIRE_GRID_H - 1; y++) {
+      drawFireSprite(SPR_FIRE[(y * 5 + f + 2) % n], 0, y, -HALF_PI);
+      drawFireSprite(SPR_FIRE[(y * 7 + f) % n], FIRE_GRID_W - 1, y, HALF_PI);
+    }
+  }
+
+  function unlockFire() {
+    if (fireUnlocked) return;
+    fireUnlocked = true;
+    gameWrapperEl.classList.add('fire-on');
   }
 
   function drawSprite(sprite, cellX, cellY) {
@@ -863,6 +968,7 @@
     if (alive && !paused) maybeRescueSpawn();
     if (!paused) updateParticles(dt);
     draw();
+    drawFire();
     if (!alive && !gameOverShown) {
       gameOverShown = true;
       onGameOver();
@@ -893,6 +999,17 @@
     pauseBtn.setAttribute('aria-label', paused ? 'Resume' : 'Pause');
   }
 
+  const KONAMI_SEQ = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight'];
+  let konamiBuf = [];
+  function recordKonami(key) {
+    konamiBuf.push(key);
+    if (konamiBuf.length > KONAMI_SEQ.length) konamiBuf.shift();
+    if (konamiBuf.length === KONAMI_SEQ.length && KONAMI_SEQ.every((k, i) => konamiBuf[i] === k)) {
+      unlockFire();
+      konamiBuf = [];
+    }
+  }
+
   window.addEventListener('keydown', (e) => {
     if (document.activeElement === initialsInputEl) {
       if (e.key === 'Enter') {
@@ -904,6 +1021,7 @@
       }
       return;
     }
+    if (e.key && e.key.startsWith('Arrow')) recordKonami(e.key);
     if (keyMap[e.key]) {
       nextDir = keyMap[e.key];
       dismissHint();
@@ -1130,9 +1248,11 @@
     right: { x: 1, y: 0 },
   };
 
+  const DPAD_TO_ARROW = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
   document.querySelectorAll('.dpad-btn').forEach(btn => {
     btn.addEventListener('pointerdown', (e) => {
       nextDir = DIR_MAP[btn.dataset.dir];
+      recordKonami(DPAD_TO_ARROW[btn.dataset.dir]);
       dismissHint();
       e.preventDefault();
     });

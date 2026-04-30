@@ -47,7 +47,7 @@
   const levelEl = document.getElementById('level');
 
   let snake, dir, nextDir, foods, score, best, alive, paused, lastTick;
-  let level, startTime, pausedAt, pausedTotal;
+  let level, startTime, pausedAt, pausedTotal, rats, eggs, pineapples;
   let particles, lastFrame;
   let gameOverShown = false;
   let lastSubmittedId = null;
@@ -114,6 +114,9 @@
     nextDir = {x: 1, y: 0};
     score = 0;
     level = 1;
+    rats = 0;
+    eggs = 0;
+    pineapples = 0;
     alive = true;
     paused = false;
     startTime = performance.now();
@@ -297,8 +300,13 @@
       if (f.type === 'pineapple') {
         spawnExplosion(f.x, f.y);
         score += 10;
+        pineapples++;
+      } else if (f.type === 'rat') {
+        score += FOOD_TYPES.rat.value;
+        rats++;
       } else {
-        score += FOOD_TYPES[f.type].value;
+        score += FOOD_TYPES.egg.value;
+        eggs++;
       }
       const idx = foods.indexOf(f);
       if (idx !== -1) foods.splice(idx, 1);
@@ -344,6 +352,8 @@
         return;
       }
       score += FOOD_TYPES[eaten.type].value;
+      if (eaten.type === 'rat') rats++;
+      else if (eaten.type === 'egg') eggs++;
       scoreEl.textContent = score;
       if (score > best) {
         best = score;
@@ -1207,13 +1217,18 @@
     submitStatusEl.textContent = 'SUBMITTING...';
     submitBtnEl.disabled = true;
     skipBtnEl.disabled = true;
-    const safeScore = Math.max(0, Math.min(10000, Math.floor(score)));
     localStorage.setItem('snake_initials', raw);
-    const { data, error } = await juicer
-      .from('scores')
-      .insert({ initials: padded, score: safeScore })
-      .select()
-      .single();
+    const { data, error } = await juicer.rpc('submit_score', {
+      p_payload: {
+        initials: padded,
+        score: Math.floor(score),
+        level: Math.floor(level),
+        rats: rats,
+        eggs: eggs,
+        pineapples: pineapples,
+        time_played: Math.floor(survivalSeconds()),
+      },
+    });
     submitBtnEl.disabled = false;
     skipBtnEl.disabled = false;
     if (error) {
@@ -1221,7 +1236,7 @@
       submitStatusEl.classList.add('error');
       return;
     }
-    lastSubmittedId = data ? data.id : null;
+    lastSubmittedId = data || null;
     await fetchLeaderboard();
     showLeaderboard();
   }

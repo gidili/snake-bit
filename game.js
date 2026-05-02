@@ -173,8 +173,17 @@
     }
   }
 
-  function allPineapples() {
-    return foods.length > 0 && foods.every(f => f.type === 'pineapple');
+  function neighborsSafe(x, y) {
+    let n = 0;
+    if (x > 0          && !foods.some(f => f.type === 'pineapple' && f.x === x - 1 && f.y === y)) n++;
+    if (x < GRID_W - 1 && !foods.some(f => f.type === 'pineapple' && f.x === x + 1 && f.y === y)) n++;
+    if (y > 0          && !foods.some(f => f.type === 'pineapple' && f.x === x && f.y === y - 1)) n++;
+    if (y < GRID_H - 1 && !foods.some(f => f.type === 'pineapple' && f.x === x && f.y === y + 1)) n++;
+    return n;
+  }
+
+  function noReachableFood() {
+    return foods.length > 0 && foods.every(f => f.type === 'pineapple' || neighborsSafe(f.x, f.y) < 2);
   }
 
   function spawnRatNearPineapple() {
@@ -209,7 +218,7 @@
   }
 
   function maybeRescueSpawn() {
-    if (allPineapples()) {
+    if (noReachableFood()) {
       const now = survivalSeconds();
       if (pineappleOnlyStart === null) {
         pineappleOnlyStart = now;

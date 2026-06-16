@@ -26,6 +26,9 @@
     { score: 1000, name: 'fire' },
     { score: 1500, name: 'green' },
     { score: 2000, name: 'blue' },
+    { score: 2500, name: 'purple' },
+    { score: 3000, name: 'white' },
+    { score: 3500, name: 'rainbow' },
   ];
   const FIRE_FRAME_MS = 120;
   const tierIndex = (name) => FIRE_TIERS.findIndex(t => t.name === name);
@@ -445,9 +448,12 @@
   };
 
   const FIRE_TIER_PALETTES = {
-    fire:  { Y: '#F8B800', F: '#FC9838', R: '#F83800', f: '#A82800' },
-    green: { Y: '#C8FCE8', F: '#58F898', R: '#00A800', f: '#005800' },
-    blue:  { Y: '#A0E8FF', F: '#58D8FC', R: '#0078F8', f: '#0000A8' },
+    fire:   { Y: '#F8B800', F: '#FC9838', R: '#F83800', f: '#A82800' },
+    green:  { Y: '#C8FCE8', F: '#58F898', R: '#00A800', f: '#005800' },
+    blue:   { Y: '#A0E8FF', F: '#58D8FC', R: '#0078F8', f: '#0000A8' },
+    purple: { Y: '#E8B8FF', F: '#C040FF', R: '#8000C0', f: '#400060' },
+    white:  { Y: '#FFFFFF', F: '#F0F0FF', R: '#C8C8FF', f: '#9090C0' },
+    rainbow: {},
   };
 
   const SPR_BTN_UP = [
@@ -736,7 +742,8 @@
     return [x0, y0, x1 - x0, y1 - y0];
   }
 
-  function drawFireSprite(sprite, cellX, cellY, rotation) {
+  function drawFireSprite(sprite, cellX, cellY, rotation, f) {
+    const isRainbow = fireTier === 'rainbow';
     const tierPalette = FIRE_TIER_PALETTES[fireTier] || {};
     fireCtx.save();
     fireCtx.translate(cellX * CELL + CELL / 2, cellY * CELL + CELL / 2);
@@ -746,7 +753,16 @@
       const row = sprite[y];
       for (let x = 0; x < SP_GRID; x++) {
         const ch = row[x];
-        const color = tierPalette[ch] || palette[ch];
+        let color;
+        if (isRainbow) {
+          const lightness = ch === 'Y' ? 90 : ch === 'F' ? 70 : ch === 'R' ? 50 : ch === 'f' ? 30 : null;
+          if (lightness != null) {
+            const hue = (f * 25 + cellX * 40 + cellY * 30) % 360;
+            color = `hsl(${hue}, 100%, ${lightness}%)`;
+          }
+        } else {
+          color = tierPalette[ch] || palette[ch];
+        }
         if (color) {
           fireCtx.fillStyle = color;
           fireCtx.fillRect(x * SP_PX, y * SP_PX, SP_PX, SP_PX);
@@ -763,12 +779,12 @@
     const n = SPR_FIRE.length;
     const HALF_PI = Math.PI / 2;
     for (let x = 1; x < FIRE_GRID_W - 1; x++) {
-      drawFireSprite(SPR_FIRE[(x + f) % n], x, 0, 0);
-      drawFireSprite(SPR_FIRE[(x * 3 + f + 1) % n], x, FIRE_GRID_H - 1, Math.PI);
+      drawFireSprite(SPR_FIRE[(x + f) % n], x, 0, 0, f);
+      drawFireSprite(SPR_FIRE[(x * 3 + f + 1) % n], x, FIRE_GRID_H - 1, Math.PI, f);
     }
     for (let y = 1; y < FIRE_GRID_H - 1; y++) {
-      drawFireSprite(SPR_FIRE[(y * 5 + f + 2) % n], 0, y, -HALF_PI);
-      drawFireSprite(SPR_FIRE[(y * 7 + f) % n], FIRE_GRID_W - 1, y, HALF_PI);
+      drawFireSprite(SPR_FIRE[(y * 5 + f + 2) % n], 0, y, -HALF_PI, f);
+      drawFireSprite(SPR_FIRE[(y * 7 + f) % n], FIRE_GRID_W - 1, y, HALF_PI, f);
     }
   }
 

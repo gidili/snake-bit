@@ -818,19 +818,29 @@
     const { items, SOLID_MS, FLASH_MS, FLASH_INTERVAL_MS } = unlockFlash;
     if (elapsed >= SOLID_MS + FLASH_MS) {
       unlockFlash = null;
-      if (!fireTier) fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
       spawnFood();
       return;
     }
-    if (!fireTier) fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
     const visible = elapsed < SOLID_MS
       ? true
       : Math.floor((elapsed - SOLID_MS) / FLASH_INTERVAL_MS) % 2 === 0;
     if (!visible || items.length === 0) return;
+    const tierPalette = FIRE_TIER_PALETTES[fireTier] || FIRE_TIER_PALETTES.fire;
     const f = Math.floor(performance.now() / FIRE_FRAME_MS);
-    const n = SPR_FIRE.length;
+    const sprite = SPR_FIRE[f % SPR_FIRE.length];
     for (const item of items) {
-      drawFireSprite(SPR_FIRE[f % n], item.x + 1, item.y + 1, 0, f);
+      const baseX = item.x * CELL;
+      const baseY = item.y * CELL;
+      for (let y = 0; y < SP_GRID; y++) {
+        const row = sprite[y];
+        for (let x = 0; x < SP_GRID; x++) {
+          const color = tierPalette[row[x]] || palette[row[x]];
+          if (color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(baseX + x * SP_PX, baseY + y * SP_PX, SP_PX, SP_PX);
+          }
+        }
+      }
     }
   }
 
@@ -1074,6 +1084,7 @@
     }
 
     drawParticles();
+    drawUnlockFlash();
     drawSwipeHint();
   }
 
@@ -1151,7 +1162,6 @@
     if (!paused) updateParticles(dt);
     draw();
     drawFire();
-    drawUnlockFlash();
     if (!alive && !gameOverShown) {
       gameOverShown = true;
       onGameOver();

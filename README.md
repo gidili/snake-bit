@@ -3,8 +3,8 @@
 Snake, with a few (pineapple) twists.
 
 <p align="center">
-  <img src="cover-art/front.png" alt="Snake vs Pineapples — front cover" width="45%">
-  <img src="cover-art/back.png" alt="Snake vs Pineapples — back cover" width="45%">
+  <img src="cover-art/front.png" alt="Snake vs Pineapples — front cover" height="360">
+  <img src="cover-art/back.png" alt="Snake vs Pineapples — back cover" height="360">
 </p>
 
 Play: https://gidili.github.io/snake-bit/

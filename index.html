@@ -429,15 +429,25 @@
   @media (min-width: 640px) {
     .splash-back { display: block; }
   }
+  @keyframes circus {
+    0%   { border-color: #F8B800; box-shadow: 0 0 10px #F8B800; }
+    17%  { border-color: #F83800; box-shadow: 0 0 10px #F83800; }
+    33%  { border-color: #58F898; box-shadow: 0 0 10px #58F898; }
+    50%  { border-color: #3CBCFC; box-shadow: 0 0 10px #3CBCFC; }
+    67%  { border-color: #C040FF; box-shadow: 0 0 10px #C040FF; }
+    83%  { border-color: #FC9838; box-shadow: 0 0 10px #FC9838; }
+    100% { border-color: #F8B800; box-shadow: 0 0 10px #F8B800; }
+  }
   #splash-play {
     font-family: inherit;
     font-size: 14px;
     color: #e5e7eb;
     background: #1a1a24;
-    border: 2px solid #F8B800;
+    border: 3px solid #F8B800;
     padding: 12px 40px;
     cursor: pointer;
     letter-spacing: 2px;
+    animation: circus 0.8s linear infinite;
   }
   #splash-play:hover { background: #3a3a4a; }
 </style>
@@ -534,6 +544,7 @@
 <script>
   const splash = document.getElementById('splash');
   document.getElementById('splash-play').addEventListener('click', () => {
+    document.dispatchEvent(new Event('gamestart'));
     splash.classList.add('fade-out');
     splash.addEventListener('transitionend', () => splash.remove(), { once: true });
   });

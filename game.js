@@ -22,9 +22,14 @@
   fireCanvas.style.left = (-1 / GRID_W * 100) + '%';
   fireCanvas.style.top = (-1 / GRID_H * 100) + '%';
   const gameWrapperEl = document.getElementById('game-wrapper');
-  const FIRE_UNLOCK_SCORE = 1000;
+  const FIRE_TIERS = [
+    { score: 1000, name: 'fire' },
+    { score: 1500, name: 'green' },
+    { score: 2000, name: 'blue' },
+  ];
   const FIRE_FRAME_MS = 120;
-  let fireUnlocked = false;
+  const tierIndex = (name) => FIRE_TIERS.findIndex(t => t.name === name);
+  let fireTier = null;
   const START_TICK_MS = 264;
   const MIN_TICK_MS = 55;
   const TICK_STEP_MS = 12;
@@ -130,7 +135,7 @@
     lastFrame = performance.now();
     particles = [];
     pineappleOnlyStart = null;
-    fireUnlocked = false;
+    fireTier = null;
     gameWrapperEl.classList.remove('fire-on');
     fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
   }
@@ -393,7 +398,9 @@
       level = newLevel;
       levelEl.textContent = level;
     }
-    if (!fireUnlocked && score >= FIRE_UNLOCK_SCORE) unlockFire();
+    let highestMet = null;
+    for (const t of FIRE_TIERS) if (score >= t.score) highestMet = t.name;
+    if (highestMet && tierIndex(highestMet) > tierIndex(fireTier)) setFireTier(highestMet);
   }
 
   // --- Sprite system -----------------------------------------------------
@@ -435,6 +442,12 @@
     F: '#FC9838',   // orange
     f: '#A82800',   // deep red
     '.': null,
+  };
+
+  const FIRE_TIER_PALETTES = {
+    fire:  { Y: '#F8B800', F: '#FC9838', R: '#F83800', f: '#A82800' },
+    green: { Y: '#C8FCE8', F: '#58F898', R: '#00A800', f: '#005800' },
+    blue:  { Y: '#A0E8FF', F: '#58D8FC', R: '#0078F8', f: '#0000A8' },
   };
 
   const SPR_BTN_UP = [
@@ -724,6 +737,7 @@
   }
 
   function drawFireSprite(sprite, cellX, cellY, rotation) {
+    const tierPalette = FIRE_TIER_PALETTES[fireTier] || {};
     fireCtx.save();
     fireCtx.translate(cellX * CELL + CELL / 2, cellY * CELL + CELL / 2);
     if (rotation) fireCtx.rotate(rotation);
@@ -731,7 +745,8 @@
     for (let y = 0; y < SP_GRID; y++) {
       const row = sprite[y];
       for (let x = 0; x < SP_GRID; x++) {
-        const color = palette[row[x]];
+        const ch = row[x];
+        const color = tierPalette[ch] || palette[ch];
         if (color) {
           fireCtx.fillStyle = color;
           fireCtx.fillRect(x * SP_PX, y * SP_PX, SP_PX, SP_PX);
@@ -742,7 +757,7 @@
   }
 
   function drawFire() {
-    if (!fireUnlocked) return;
+    if (!fireTier) return;
     fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
     const f = Math.floor(performance.now() / FIRE_FRAME_MS);
     const n = SPR_FIRE.length;
@@ -757,10 +772,17 @@
     }
   }
 
+  function setFireTier(name) {
+    fireTier = name;
+    if (name) {
+      gameWrapperEl.classList.add('fire-on');
+    } else {
+      gameWrapperEl.classList.remove('fire-on');
+    }
+  }
+
   function unlockFire() {
-    if (fireUnlocked) return;
-    fireUnlocked = true;
-    gameWrapperEl.classList.add('fire-on');
+    if (!fireTier) setFireTier('fire');
   }
 
   function drawSprite(sprite, cellX, cellY) {

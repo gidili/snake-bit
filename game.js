@@ -1530,7 +1530,7 @@
   initLegend();
   initButtonIcons();
   reset();
-  requestAnimationFrame(loop);
+  document.addEventListener('gamestart', () => requestAnimationFrame(loop), { once: true });
   fetchLeaderboard();
   if (juicer) setInterval(fetchLeaderboard, LEADERBOARD_POLL_MS);
 })();

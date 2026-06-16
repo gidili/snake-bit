@@ -57,6 +57,7 @@
   let snake, dir, nextDir, foods, score, best, alive, paused, lastTick;
   let level, startTime, pausedAt, pausedTotal, rats, eggs, pineapples;
   let particles, lastFrame;
+  let unlockFlash = null;
   let gameOverShown = false;
   let lastSubmittedId = null;
   let hintFadeStart = null;
@@ -789,11 +790,47 @@
   }
 
   function setFireTier(name) {
-    fireTier = name;
     if (name) {
+      const snapshot = [...foods];
+      for (const f of snapshot) {
+        if (f.type === 'rat')        { score += FOOD_TYPES.rat.value; rats++; }
+        else if (f.type === 'egg')   { score += FOOD_TYPES.egg.value; eggs++; }
+        else if (f.type === 'pineapple') { score += 10; pineapples++; }
+      }
+      scoreEl.textContent = score;
+      if (score > best) {
+        best = score;
+        bestEl.textContent = best;
+        localStorage.setItem('snake_best', best);
+      }
+      foods = [];
+      unlockFlash = { items: snapshot, startMs: performance.now(), SOLID_MS: 600, FLASH_MS: 2000, FLASH_INTERVAL_MS: 150 };
       gameWrapperEl.classList.add('fire-on');
     } else {
       gameWrapperEl.classList.remove('fire-on');
+    }
+    fireTier = name;
+  }
+
+  function drawUnlockFlash() {
+    if (!unlockFlash) return;
+    const elapsed = performance.now() - unlockFlash.startMs;
+    const { items, SOLID_MS, FLASH_MS, FLASH_INTERVAL_MS } = unlockFlash;
+    if (elapsed >= SOLID_MS + FLASH_MS) {
+      unlockFlash = null;
+      if (!fireTier) fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
+      spawnFood();
+      return;
+    }
+    if (!fireTier) fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
+    const visible = elapsed < SOLID_MS
+      ? true
+      : Math.floor((elapsed - SOLID_MS) / FLASH_INTERVAL_MS) % 2 === 0;
+    if (!visible || items.length === 0) return;
+    const f = Math.floor(performance.now() / FIRE_FRAME_MS);
+    const n = SPR_FIRE.length;
+    for (const item of items) {
+      drawFireSprite(SPR_FIRE[f % n], item.x + 1, item.y + 1, 0, f);
     }
   }
 
@@ -1114,6 +1151,7 @@
     if (!paused) updateParticles(dt);
     draw();
     drawFire();
+    drawUnlockFlash();
     if (!alive && !gameOverShown) {
       gameOverShown = true;
       onGameOver();

@@ -274,10 +274,14 @@ const SFX = (() => {
     setTimeout(startDeathMusic, 900);
   }
 
+  let muted = false;
+  function mute()   { muted = true;  if (masterGain) masterGain.gain.value = 0; }
+  function unmute() { muted = false; if (masterGain) masterGain.gain.value = 0.45; }
+  function isMuted() { return muted; }
   function enable() { audioEnabled = true; }
   function isEnabled() { return audioEnabled; }
 
-  return { startSplash, stopSplash, playModem, startMusic, updateTempo, stopMusic, playEat, playExplosion, playDeath, startDeathMusic, unlock, enable, isEnabled };
+  return { startSplash, stopSplash, playModem, startMusic, updateTempo, stopMusic, playEat, playExplosion, playDeath, startDeathMusic, unlock, mute, unmute, isMuted, enable, isEnabled };
 })();
 
 (() => {
@@ -1557,6 +1561,10 @@ const SFX = (() => {
       e.preventDefault();
     } else if (e.key === 'r' || e.key === 'R') {
       restart();
+    } else if (e.key === 'm' || e.key === 'M') {
+      if (SFX.isEnabled()) {
+        if (SFX.isMuted()) { SFX.unmute(); } else { SFX.mute(); }
+      }
     } else if (e.key === 'Escape') {
       dismissOverlay();
     }

@@ -420,14 +420,18 @@
     justify-content: center;
   }
   .splash-covers img {
-    height: 72vh;
-    max-height: 580px;
+    height: 58vh;
+    max-height: 480px;
     object-fit: contain;
     display: block;
   }
   .splash-back { display: none; }
   @media (min-width: 640px) {
     .splash-back { display: block; }
+    .splash-covers img {
+      height: 72vh;
+      max-height: 580px;
+    }
   }
   @keyframes circus {
     0%   { border-color: #F8B800; box-shadow: 0 0 10px #F8B800; }
@@ -440,11 +444,11 @@
   }
   #splash-play {
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px;
     color: #e5e7eb;
     background: #1a1a24;
     border: 3px solid #F8B800;
-    padding: 12px 40px;
+    padding: 16px 48px;
     cursor: pointer;
     letter-spacing: 2px;
     animation: circus 0.8s linear infinite;

@@ -1,3 +1,285 @@
+const SFX = (() => {
+  let ac = null, masterGain = null;
+  let splashNodes = [], splashArpTimer = null, splashArpIdx = 0, splashReady = false;
+  let musicTimer = null, musicStep = 0, nextNoteTime = 0;
+  let deathMusicTimer = null, deathStep = 0, deathNextNote = 0;
+  let organTimer = null, organStep = 0, organNextTime = 0;
+  let currentTickMs = 264;
+  let audioEnabled = false;
+  let gameDroneNodes = [];
+
+  function initAC() {
+    if (!ac) {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = ac.createGain();
+      masterGain.gain.value = 0.45;
+      masterGain.connect(ac.destination);
+    }
+    return ac;
+  }
+  function getAC() { initAC(); if (ac.state === 'suspended') ac.resume(); return ac; }
+  function unlock() {
+    initAC();
+    if (ac.state === 'suspended') {
+      ac.resume().then(() => {
+        if (splashReady) { splashReady = false; doStartSplash(); }
+      }).catch(() => {});
+    }
+  }
+  function out() { initAC(); return masterGain; }
+
+  // Splash: eerie drone + slow haunting arpeggio
+  const SPLASH_ARP = [110, 130.81, 164.81, 174.61, 130.81, 98];
+  function doStartSplash() {
+    [[55,'sine',0.06],[55.7,'sine',0.04],[27.5,'sawtooth',0.03]].forEach(([freq,type,vol]) => {
+      const osc = ac.createOscillator(), g = ac.createGain();
+      const lfo = ac.createOscillator(), lg = ac.createGain();
+      osc.type = type; osc.frequency.value = freq; g.gain.value = vol;
+      lfo.frequency.value = 0.25; lg.gain.value = 0.025;
+      lfo.connect(lg); lg.connect(g.gain); osc.connect(g); g.connect(masterGain);
+      osc.start(); lfo.start();
+      splashNodes.push(osc, lfo, lg, g);
+    });
+    (function arp() {
+      const osc = ac.createOscillator(), g = ac.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = SPLASH_ARP[splashArpIdx++ % SPLASH_ARP.length];
+      g.gain.setValueAtTime(0.09, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 1.8);
+      osc.connect(g); g.connect(masterGain); osc.start(); osc.stop(ac.currentTime + 1.9);
+      splashArpTimer = setTimeout(arp, 1500);
+    })();
+  }
+  function startSplash() {
+    stopSplash(); splashArpIdx = 0;
+    initAC();
+    if (ac.state === 'running') { doStartSplash(); }
+    else { splashReady = true; }
+  }
+  function stopSplash() {
+    splashReady = false;
+    splashNodes.forEach(n => { try { n.stop && n.stop(); n.disconnect(); } catch(e){} });
+    splashNodes = []; clearTimeout(splashArpTimer); splashArpTimer = null;
+  }
+
+  // Modem connecting sound
+  function playModem(onDone) {
+    const a = getAC(); let t = a.currentTime + 0.05;
+    [2100,1300,2100].forEach(freq => {
+      const osc = a.createOscillator(), g = a.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.08,t); g.gain.setValueAtTime(0,t+0.11);
+      osc.connect(g); g.connect(out()); osc.start(t); osc.stop(t+0.12); t += 0.13;
+    });
+    for (let i = 0; i < 8; i++) {
+      const osc = a.createOscillator(), g = a.createGain();
+      osc.type = i%2===0 ? 'sawtooth' : 'square';
+      osc.frequency.setValueAtTime(600+Math.random()*2400, t);
+      osc.frequency.linearRampToValueAtTime(400+Math.random()*2600, t+0.065);
+      g.gain.setValueAtTime(0.05,t); g.gain.setValueAtTime(0,t+0.065);
+      osc.connect(g); g.connect(out()); osc.start(t); osc.stop(t+0.07); t += 0.07;
+    }
+    t += 0.06;
+    [880,1100,1320].forEach((freq,i) => {
+      const osc = a.createOscillator(), g = a.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.1, t+i*0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, t+i*0.12+0.18);
+      osc.connect(g); g.connect(out()); osc.start(t+i*0.12); osc.stop(t+i*0.12+0.2);
+    });
+    t += 0.45;
+    setTimeout(onDone, Math.max(0, (t - a.currentTime) * 1000));
+  }
+
+  // Game music: Bowser's Castle — dark minor, rhythmic, tempo tracks game speed
+  const BASS = [55,0,55,0,82.41,0,55,0,49,0,55,0,65.41,0,58.27,0];
+  const LEAD = [220,0,0,0,261.63,0,0,0,329.63,0,0,0,392,0,329.63,0];
+  function sixteenthDur() {
+    const bpm = 80 + ((264 - Math.max(55, Math.min(264, currentTickMs))) / 209) * 90;
+    return 60 / bpm / 4;
+  }
+  function scheduleMusicTick() {
+    const a = getAC();
+    while (nextNoteTime < a.currentTime + 0.12) {
+      const step = musicStep % 16, dur = sixteenthDur();
+      if (BASS[step]) {
+        const osc = a.createOscillator(), g = a.createGain();
+        osc.type = 'square'; osc.frequency.value = BASS[step];
+        g.gain.setValueAtTime(0.15, nextNoteTime);
+        g.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + dur*0.75);
+        osc.connect(g); g.connect(out()); osc.start(nextNoteTime); osc.stop(nextNoteTime + dur*0.8);
+      }
+      if (LEAD[step]) {
+        const osc = a.createOscillator(), g = a.createGain();
+        osc.type = 'triangle'; osc.frequency.value = LEAD[step];
+        g.gain.setValueAtTime(0.08, nextNoteTime);
+        g.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + dur*0.9);
+        osc.connect(g); g.connect(out()); osc.start(nextNoteTime); osc.stop(nextNoteTime + dur*0.95);
+      }
+      if (step === 0 || step === 8) {
+        const osc = a.createOscillator(), g = a.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(120, nextNoteTime);
+        osc.frequency.exponentialRampToValueAtTime(40, nextNoteTime + 0.08);
+        g.gain.setValueAtTime(0.3, nextNoteTime);
+        g.gain.exponentialRampToValueAtTime(0.001, nextNoteTime + 0.12);
+        osc.connect(g); g.connect(out()); osc.start(nextNoteTime); osc.stop(nextNoteTime + 0.13);
+      }
+      nextNoteTime += dur;
+      musicStep++;
+    }
+    musicTimer = setTimeout(scheduleMusicTick, 25);
+  }
+  // Eerie atmospheric drone under the game beat
+  function startGameDrone() {
+    stopGameDrone();
+    const a = getAC();
+    [[55,'sine',0.055],[55.7,'sine',0.038],[27.5,'sawtooth',0.028]].forEach(([freq,type,vol]) => {
+      const osc = a.createOscillator(), g = a.createGain();
+      const lfo = a.createOscillator(), lg = a.createGain();
+      osc.type = type; osc.frequency.value = freq; g.gain.value = vol;
+      lfo.frequency.value = 0.25; lg.gain.value = 0.025;
+      lfo.connect(lg); lg.connect(g.gain); osc.connect(g); g.connect(out());
+      osc.start(); lfo.start();
+      gameDroneNodes.push(osc, lfo, g);
+    });
+  }
+  function stopGameDrone() {
+    gameDroneNodes.forEach(n => { try { n.stop && n.stop(); n.disconnect(); } catch(e){} });
+    gameDroneNodes = [];
+  }
+  function startMusic(tickMs) {
+    stopMusic(); currentTickMs = tickMs;
+    const a = getAC(); nextNoteTime = a.currentTime + 0.05; musicStep = 0;
+    scheduleMusicTick();
+    startGameDrone();
+  }
+  function updateTempo(tickMs) { currentTickMs = tickMs; }
+  function stopMusic() {
+    clearTimeout(musicTimer); musicTimer = null;
+    clearTimeout(deathMusicTimer); deathMusicTimer = null;
+    stopGameDrone();
+    stopOrgan();
+  }
+
+  // Eat: ascending happy chime
+  function playEat() {
+    const a = getAC(), t = a.currentTime;
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const osc = a.createOscillator(), g = a.createGain();
+      osc.type = 'square'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.1, t+i*0.045);
+      g.gain.exponentialRampToValueAtTime(0.001, t+i*0.045+0.07);
+      osc.connect(g); g.connect(out()); osc.start(t+i*0.045); osc.stop(t+i*0.045+0.08);
+    });
+  }
+
+  // Pineapple explosion: noise burst + pitch drop
+  function playExplosion() {
+    const a = getAC(), t = a.currentTime, sr = a.sampleRate;
+    const buf = a.createBuffer(1, sr*0.3, sr), data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random()*2-1;
+    const noise = a.createBufferSource(), ng = a.createGain();
+    noise.buffer = buf;
+    ng.gain.setValueAtTime(0.35,t); ng.gain.exponentialRampToValueAtTime(0.001,t+0.3);
+    noise.connect(ng); ng.connect(out()); noise.start(t);
+    const osc = a.createOscillator(), g = a.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300,t); osc.frequency.exponentialRampToValueAtTime(40,t+0.25);
+    g.gain.setValueAtTime(0.18,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+    osc.connect(g); g.connect(out()); osc.start(t); osc.stop(t+0.26);
+  }
+
+  // Death: descending chromatic (Mario-style), music stops, then funeral organ begins
+  // Organ: Am→Dm→E→Am chord cycle, triangle + octave stops, high whistle on top
+  const DEATH_MELODY = [
+    1318.51, 1174.66, 1046.5, 987.77, 880, 830.61, 880, 659.25,
+    659.25, 830.61, 880, 1046.5, 1318.51, 1174.66, 1046.5, 880
+  ];
+  const ORGAN_CHORDS = [
+    [110, 130.81, 164.81],     // Am:  A2, C3, E3
+    [146.83, 174.61, 220],     // Dm:  D3, F3, A3
+    [103.83, 164.81, 246.94],  // E:   G#2, E3, B3  (harmonic minor tension)
+    [110, 164.81, 261.63]      // Am:  A2, E3, C4
+  ];
+  function scheduleDeathTick() {
+    const a = getAC();
+    while (deathNextNote < a.currentTime + 0.2) {
+      const freq = DEATH_MELODY[deathStep % DEATH_MELODY.length];
+      const noteDur = 0.92, gap = 0.13;
+      const osc = a.createOscillator(), g = a.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const lfo = a.createOscillator(), lg = a.createGain();
+      lfo.frequency.value = 4.8; lg.gain.value = 4;
+      lfo.connect(lg); lg.connect(osc.frequency);
+      g.gain.setValueAtTime(0, deathNextNote);
+      g.gain.linearRampToValueAtTime(0.042, deathNextNote + 0.06);
+      g.gain.setValueAtTime(0.042, deathNextNote + noteDur * 0.65);
+      g.gain.linearRampToValueAtTime(0, deathNextNote + noteDur);
+      osc.connect(g); g.connect(out());
+      osc.start(deathNextNote); osc.stop(deathNextNote + noteDur + 0.01);
+      lfo.start(deathNextNote); lfo.stop(deathNextNote + noteDur + 0.01);
+      deathNextNote += noteDur + gap;
+      deathStep++;
+    }
+    deathMusicTimer = setTimeout(scheduleDeathTick, 25);
+  }
+  function scheduleOrganTick() {
+    const a = getAC();
+    const chordDur = 3.5, release = 0.8;
+    while (organNextTime < a.currentTime + 0.4) {
+      const chord = ORGAN_CHORDS[organStep % ORGAN_CHORDS.length];
+      chord.forEach((freq, i) => {
+        [freq, freq * 2].forEach((f, h) => {
+          const osc = a.createOscillator(), g = a.createGain();
+          osc.type = 'triangle'; osc.frequency.value = f;
+          const vol = h === 0 ? 0.07 : 0.032, t = organNextTime + i * 0.06;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(vol, t + 0.45);
+          g.gain.setValueAtTime(vol, t + chordDur - release);
+          g.gain.linearRampToValueAtTime(0, t + chordDur + 0.1);
+          osc.connect(g); g.connect(out());
+          osc.start(t); osc.stop(t + chordDur + 0.2);
+        });
+      });
+      organNextTime += chordDur;
+      organStep++;
+    }
+    organTimer = setTimeout(scheduleOrganTick, 50);
+  }
+  function startOrgan() {
+    stopOrgan(); organStep = 0;
+    const a = getAC(); organNextTime = a.currentTime + 0.15;
+    scheduleOrganTick();
+  }
+  function stopOrgan() { clearTimeout(organTimer); organTimer = null; }
+  function startDeathMusic() {
+    clearTimeout(deathMusicTimer);
+    deathStep = 0;
+    const a = getAC();
+    deathNextNote = a.currentTime + 0.05;
+    scheduleDeathTick();
+    startOrgan();
+  }
+  function playDeath() {
+    stopMusic();
+    const a = getAC(), t = a.currentTime;
+    [494,466.16,440,415.3,392,369.99,349.23,329.63,311.13,293.66,261.63].forEach((freq,i) => {
+      const osc = a.createOscillator(), g = a.createGain();
+      osc.type = 'square'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.14, t+i*0.065);
+      g.gain.exponentialRampToValueAtTime(0.001, t+i*0.065+0.09);
+      osc.connect(g); g.connect(out()); osc.start(t+i*0.065); osc.stop(t+i*0.065+0.1);
+    });
+    setTimeout(startDeathMusic, 900);
+  }
+
+  function enable() { audioEnabled = true; }
+  function isEnabled() { return audioEnabled; }
+
+  return { startSplash, stopSplash, playModem, startMusic, updateTempo, stopMusic, playEat, playExplosion, playDeath, startDeathMusic, unlock, enable, isEnabled };
+})();
+
 (() => {
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
@@ -54,7 +336,7 @@
 
   const levelEl = document.getElementById('level');
 
-  let snake, dir, nextDir, foods, score, best, alive, paused, lastTick;
+  let snake, dir, nextDir, foods, score, foodScore, best, alive, paused, lastTick;
   let level, startTime, pausedAt, pausedTotal, rats, eggs, pineapples;
   let particles, lastFrame;
   let unlockFlash = null;
@@ -122,6 +404,7 @@
     dir = {x: 1, y: 0};
     nextDir = {x: 1, y: 0};
     score = 0;
+    foodScore = 0;
     level = 1;
     rats = 0;
     eggs = 0;
@@ -142,6 +425,7 @@
     fireTier = null;
     gameWrapperEl.classList.remove('fire-on');
     fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
+    if (SFX.isEnabled()) SFX.startMusic(currentTickMs());
   }
 
   function survivalSeconds() {
@@ -149,7 +433,7 @@
   }
 
   function computeLevel() {
-    const byFood = Math.floor(score / FOOD_PER_LEVEL);
+    const byFood = Math.floor(foodScore / FOOD_PER_LEVEL);
     const byTime = Math.floor(survivalSeconds() / SECONDS_PER_LEVEL);
     return 1 + Math.min(byFood, byTime);
   }
@@ -316,14 +600,14 @@
     if (enclosed.length === 0) return;
     for (const f of enclosed) {
       if (f.type === 'pineapple') {
-        spawnExplosion(f.x, f.y);
-        score += 10;
+        spawnExplosion(f.x, f.y); SFX.playExplosion();
+        score += 10; foodScore += 10;
         pineapples++;
       } else if (f.type === 'rat') {
-        score += FOOD_TYPES.rat.value;
+        score += FOOD_TYPES.rat.value; foodScore += FOOD_TYPES.rat.value;
         rats++;
       } else {
-        score += FOOD_TYPES.egg.value;
+        score += FOOD_TYPES.egg.value; foodScore += FOOD_TYPES.egg.value;
         eggs++;
       }
       const idx = foods.indexOf(f);
@@ -351,11 +635,11 @@
     const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
     if (head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H) {
-      alive = false;
+      alive = false; SFX.playDeath();
       return;
     }
     if (snake.some(s => s.x === head.x && s.y === head.y)) {
-      alive = false;
+      alive = false; SFX.playDeath();
       return;
     }
 
@@ -366,18 +650,19 @@
       const eaten = foods[eatenIdx];
       if (FOOD_TYPES[eaten.type].deadly) {
         if (fireTier === 'rainbow') {
-          spawnExplosion(eaten.x, eaten.y);
-          score += 10;
+          spawnExplosion(eaten.x, eaten.y); SFX.playExplosion();
+          score += 10; foodScore += 10;
           pineapples++;
         } else {
           spawnExplosion(head.x, head.y);
-          alive = false;
+          alive = false; SFX.playDeath();
           return;
         }
       } else {
-        score += FOOD_TYPES[eaten.type].value;
+        score += FOOD_TYPES[eaten.type].value; foodScore += FOOD_TYPES[eaten.type].value;
         if (eaten.type === 'rat') rats++;
         else if (eaten.type === 'egg') eggs++;
+        SFX.playEat();
       }
       scoreEl.textContent = score;
       if (score > best) {
@@ -408,6 +693,7 @@
       }
       level = newLevel;
       levelEl.textContent = level;
+      SFX.updateTempo(currentTickMs());
     }
     let highestMet = null;
     for (const t of FIRE_TIERS) if (score >= t.score) highestMet = t.name;
@@ -800,9 +1086,9 @@
     if (name) {
       const snapshot = [...foods];
       for (const f of snapshot) {
-        if (f.type === 'rat')        { score += FOOD_TYPES.rat.value; rats++; }
-        else if (f.type === 'egg')   { score += FOOD_TYPES.egg.value; eggs++; }
-        else if (f.type === 'pineapple') { score += 10; pineapples++; }
+        if (f.type === 'rat')        { score += FOOD_TYPES.rat.value; foodScore += FOOD_TYPES.rat.value; rats++; }
+        else if (f.type === 'egg')   { score += FOOD_TYPES.egg.value; foodScore += FOOD_TYPES.egg.value; eggs++; }
+        else if (f.type === 'pineapple') { score += 10; foodScore += 10; pineapples++; }
       }
       scoreEl.textContent = score;
       if (score > best) {
@@ -1530,7 +1816,11 @@
   initLegend();
   initButtonIcons();
   reset();
-  document.addEventListener('gamestart', () => requestAnimationFrame(loop), { once: true });
+  document.addEventListener('gamestart', () => {
+    SFX.enable();
+    SFX.playModem(() => SFX.startMusic(currentTickMs()));
+    requestAnimationFrame(loop);
+  }, { once: true });
   fetchLeaderboard();
   if (juicer) setInterval(fetchLeaderboard, LEADERBOARD_POLL_MS);
 })();

@@ -543,6 +543,8 @@
 <script src="game.js?v=3"></script>
 <script>
   const splash = document.getElementById('splash');
+  document.addEventListener('mousemove', () => SFX.unlock(), { once: true });
+  document.addEventListener('pointerdown', () => SFX.unlock(), { once: true });
   document.getElementById('splash-play').addEventListener('click', () => {
     document.dispatchEvent(new Event('gamestart'));
     splash.classList.add('fade-out');

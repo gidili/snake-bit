@@ -23,12 +23,12 @@
   fireCanvas.style.top = (-1 / GRID_H * 100) + '%';
   const gameWrapperEl = document.getElementById('game-wrapper');
   const FIRE_TIERS = [
-    { score: 1000, name: 'fire' },
-    { score: 1500, name: 'green' },
-    { score: 2000, name: 'blue' },
-    { score: 2500, name: 'purple' },
-    { score: 3000, name: 'white' },
-    { score: 3500, name: 'rainbow' },
+    { score:  800, name: 'fire' },
+    { score: 1350, name: 'green' },
+    { score: 1850, name: 'blue' },
+    { score: 2300, name: 'purple' },
+    { score: 2700, name: 'white' },
+    { score: 3000, name: 'rainbow' },
   ];
   const FIRE_FRAME_MS = 120;
   const tierIndex = (name) => FIRE_TIERS.findIndex(t => t.name === name);
@@ -57,6 +57,7 @@
   let snake, dir, nextDir, foods, score, best, alive, paused, lastTick;
   let level, startTime, pausedAt, pausedTotal, rats, eggs, pineapples;
   let particles, lastFrame;
+  let unlockFlash = null;
   let gameOverShown = false;
   let lastSubmittedId = null;
   let hintFadeStart = null;
@@ -789,11 +790,58 @@
   }
 
   function setFireTier(name) {
-    fireTier = name;
     if (name) {
+      const snapshot = [...foods];
+      for (const f of snapshot) {
+        if (f.type === 'rat')        { score += FOOD_TYPES.rat.value; rats++; }
+        else if (f.type === 'egg')   { score += FOOD_TYPES.egg.value; eggs++; }
+        else if (f.type === 'pineapple') { score += 10; pineapples++; }
+      }
+      scoreEl.textContent = score;
+      if (score > best) {
+        best = score;
+        bestEl.textContent = best;
+        localStorage.setItem('snake_best', best);
+      }
+      foods = [];
+      unlockFlash = { items: snapshot, startMs: performance.now(), SOLID_MS: 2000, FLASH_MS: 2500, FLASH_INTERVAL_MS: 150, BLANK_MS: 1200 };
       gameWrapperEl.classList.add('fire-on');
     } else {
       gameWrapperEl.classList.remove('fire-on');
+    }
+    fireTier = name;
+  }
+
+  function drawUnlockFlash() {
+    if (!unlockFlash) return;
+    const elapsed = performance.now() - unlockFlash.startMs;
+    const { items, SOLID_MS, FLASH_MS, FLASH_INTERVAL_MS, BLANK_MS } = unlockFlash;
+    if (elapsed >= SOLID_MS + FLASH_MS + BLANK_MS) {
+      unlockFlash = null;
+      spawnFood();
+      return;
+    }
+    if (elapsed >= SOLID_MS + FLASH_MS) return;
+    const visible = elapsed < SOLID_MS
+      ? true
+      : Math.floor((elapsed - SOLID_MS) / FLASH_INTERVAL_MS) % 2 === 0;
+    if (!visible || items.length === 0) return;
+    const tierPalette = FIRE_TIER_PALETTES[fireTier] || FIRE_TIER_PALETTES.fire;
+    const f = Math.floor(performance.now() / FIRE_FRAME_MS);
+    const sprite = SPR_FIRE[f % SPR_FIRE.length];
+    for (const item of items) {
+      const baseX = item.x * CELL;
+      const baseY = item.y * CELL;
+      for (let y = 0; y < SP_GRID; y++) {
+        const row = sprite[y];
+        for (let x = 0; x < SP_GRID; x++) {
+          const color = tierPalette[row[x]] || palette[row[x]];
+          if (color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(baseX + x * SP_PX, baseY + y * SP_PX, SP_PX, SP_PX);
+          }
+        }
+      }
     }
   }
 
@@ -1037,6 +1085,7 @@
     }
 
     drawParticles();
+    drawUnlockFlash();
     drawSwipeHint();
   }
 

@@ -396,9 +396,61 @@
     min-height: 10px;
   }
   .gameover-content .status.error { color: #f76363; }
+
+  #splash {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    z-index: 9999;
+    transition: opacity 0.5s ease;
+  }
+  #splash.fade-out {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .splash-covers {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  .splash-covers img {
+    height: 72vh;
+    max-height: 580px;
+    object-fit: contain;
+    display: block;
+  }
+  .splash-back { display: none; }
+  @media (min-width: 640px) {
+    .splash-back { display: block; }
+  }
+  #splash-play {
+    font-family: inherit;
+    font-size: 14px;
+    color: #e5e7eb;
+    background: #1a1a24;
+    border: 2px solid #F8B800;
+    padding: 12px 40px;
+    cursor: pointer;
+    letter-spacing: 2px;
+  }
+  #splash-play:hover { background: #3a3a4a; }
 </style>
 </head>
 <body>
+  <div id="splash">
+    <div class="splash-covers">
+      <img src="cover-art/front.png" alt="Snake vs Pineapples front cover">
+      <img src="cover-art/back.png" alt="Snake vs Pineapples back cover" class="splash-back">
+    </div>
+    <button id="splash-play">PLAY</button>
+  </div>
+
   <span id="pineappl" hidden>dYGBfYBHPDx7e2+Gf396hW6DdX1ucXpycINwhjuAgn1ub26AcjtwfIlyhld1b1Rwdlx2V1Zih1Y+W3ZWgFZ7X0JwUFZDVnh9ZWNQV0Y7coZXfXBAWnZcdleHcWVPdWZ6U4dnYFaAVntXeWd2VkNWekKCZnt5hnB6PkFmZWd8cFRTeG9kY3dxeltCVnaEdnB6RoBnYFZDVnpTgm8/QXZZUFd9ZmVedlx3UkBbh3CEW1FwQlxhcIBWemNBcFBWQ1p3TkJad2aGWod4QltAPTtweHVsWmA6Y0RVdlSGQ11sX4BcXnVEYWZhYGWFdXdWbHhTUoRRZHRBg2A9</span>
   <h1>SNAKE VS <canvas id="title-pineapple" width="28" height="28"></canvas></h1>
   <div id="hud">
@@ -479,5 +531,12 @@
   </div>
 </div>
 <script src="game.js?v=3"></script>
+<script>
+  const splash = document.getElementById('splash');
+  document.getElementById('splash-play').addEventListener('click', () => {
+    splash.classList.add('fade-out');
+    splash.addEventListener('transitionend', () => splash.remove(), { once: true });
+  });
+</script>
 </body>
 </html>

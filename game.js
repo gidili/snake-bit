@@ -798,7 +798,9 @@
   }
 
   function unlockFire() {
-    if (!fireTier) setFireTier('fire');
+    const currentIndex = fireTier ? tierIndex(fireTier) : -1;
+    const next = FIRE_TIERS[currentIndex + 1];
+    setFireTier(next ? next.name : null);
   }
 
   function drawSprite(sprite, cellX, cellY) {

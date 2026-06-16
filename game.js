@@ -365,13 +365,20 @@
     if (eatenIdx !== -1) {
       const eaten = foods[eatenIdx];
       if (FOOD_TYPES[eaten.type].deadly) {
-        spawnExplosion(head.x, head.y);
-        alive = false;
-        return;
+        if (fireTier === 'rainbow') {
+          spawnExplosion(eaten.x, eaten.y);
+          score += 10;
+          pineapples++;
+        } else {
+          spawnExplosion(head.x, head.y);
+          alive = false;
+          return;
+        }
+      } else {
+        score += FOOD_TYPES[eaten.type].value;
+        if (eaten.type === 'rat') rats++;
+        else if (eaten.type === 'egg') eggs++;
       }
-      score += FOOD_TYPES[eaten.type].value;
-      if (eaten.type === 'rat') rats++;
-      else if (eaten.type === 'egg') eggs++;
       scoreEl.textContent = score;
       if (score > best) {
         best = score;
@@ -866,6 +873,26 @@
     }
   }
 
+  function drawSpriteRainbow(sprite, cellX, cellY, hue) {
+    const baseX = cellX * CELL;
+    const baseY = cellY * CELL;
+    for (let y = 0; y < SP_GRID; y++) {
+      const row = sprite[y];
+      for (let x = 0; x < SP_GRID; x++) {
+        const ch = row[x];
+        let color;
+        if      (ch === 'd' || ch === 'T') color = `hsl(${hue},100%,22%)`;
+        else if (ch === 'g' || ch === 't') color = `hsl(${hue},100%,50%)`;
+        else if (ch === 'h' || ch === 'i') color = `hsl(${hue},100%,78%)`;
+        else color = palette[ch];
+        if (color) {
+          ctx.fillStyle = color;
+          ctx.fillRect(...spriteRect(baseX, baseY, x, y));
+        }
+      }
+    }
+  }
+
   function drawSnakeHead(cellX, cellY, direction) {
     drawSprite(SPR_HEAD, cellX, cellY);
     const offsets = PUPIL_OFFSETS[`${direction.x},${direction.y}`] || PUPIL_OFFSETS['1,0'];
@@ -1056,12 +1083,31 @@
     const tailDir = prev ? { x: tail.x - prev.x, y: tail.y - prev.y } : dir;
 
     snake.forEach((s, i) => {
-      if (i === 0) {
-        if (alive) drawSnakeHead(s.x, s.y, dir);
-        else drawSnakeHeadDead(s.x, s.y);
+      if (fireTier === 'rainbow') {
+        const hue = (performance.now() * 0.05 + i * 20) % 360;
+        if (i === 0) {
+          if (alive) {
+            drawSpriteRainbow(SPR_HEAD, s.x, s.y, hue);
+            const offsets = PUPIL_OFFSETS[`${dir.x},${dir.y}`] || PUPIL_OFFSETS['1,0'];
+            const baseX = s.x * CELL;
+            const baseY = s.y * CELL;
+            ctx.fillStyle = palette.K;
+            for (const [px, py] of offsets) ctx.fillRect(...spriteRect(baseX, baseY, px, py, 1, 1));
+          } else drawSnakeHeadDead(s.x, s.y);
+        } else if (i === lastIdx) {
+          const sprite = TAIL_SPRITES[`${tailDir.x},${tailDir.y}`] || SPR_TAIL_RIGHT;
+          drawSpriteRainbow(sprite, s.x, s.y, hue);
+        } else {
+          drawSpriteRainbow(SPR_BODY, s.x, s.y, hue);
+        }
+      } else {
+        if (i === 0) {
+          if (alive) drawSnakeHead(s.x, s.y, dir);
+          else drawSnakeHeadDead(s.x, s.y);
+        }
+        else if (i === lastIdx) drawSnakeTail(s.x, s.y, tailDir);
+        else drawSnakeBody(s.x, s.y);
       }
-      else if (i === lastIdx) drawSnakeTail(s.x, s.y, tailDir);
-      else drawSnakeBody(s.x, s.y);
     });
 
     if (!alive) {

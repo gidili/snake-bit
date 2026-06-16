@@ -23,12 +23,12 @@
   fireCanvas.style.top = (-1 / GRID_H * 100) + '%';
   const gameWrapperEl = document.getElementById('game-wrapper');
   const FIRE_TIERS = [
-    { score: 1000, name: 'fire' },
-    { score: 1500, name: 'green' },
-    { score: 2000, name: 'blue' },
-    { score: 2500, name: 'purple' },
-    { score: 3000, name: 'white' },
-    { score: 3500, name: 'rainbow' },
+    { score:  800, name: 'fire' },
+    { score: 1350, name: 'green' },
+    { score: 1850, name: 'blue' },
+    { score: 2300, name: 'purple' },
+    { score: 2700, name: 'white' },
+    { score: 3000, name: 'rainbow' },
   ];
   const FIRE_FRAME_MS = 120;
   const tierIndex = (name) => FIRE_TIERS.findIndex(t => t.name === name);

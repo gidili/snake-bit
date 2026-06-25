@@ -174,6 +174,26 @@ const SFX = (() => {
     });
   }
 
+  // Fire tier unlock: rising woosh + shimmer
+  function playWoosh() {
+    const a = getAC(), t = a.currentTime;
+    const osc = a.createOscillator(), g = a.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(1800, t + 0.35);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.22, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    osc.connect(g); g.connect(out()); osc.start(t); osc.stop(t + 0.56);
+    [0.18, 0.28, 0.38].forEach((dt, i) => {
+      const s = a.createOscillator(), sg = a.createGain();
+      s.type = 'triangle'; s.frequency.value = 880 + i * 440;
+      sg.gain.setValueAtTime(0.07, t + dt);
+      sg.gain.exponentialRampToValueAtTime(0.001, t + dt + 0.12);
+      s.connect(sg); sg.connect(out()); s.start(t + dt); s.stop(t + dt + 0.13);
+    });
+  }
+
   // Pineapple explosion: noise burst + pitch drop
   function playExplosion() {
     const a = getAC(), t = a.currentTime, sr = a.sampleRate;
@@ -274,10 +294,14 @@ const SFX = (() => {
     setTimeout(startDeathMusic, 900);
   }
 
+  let muted = false;
+  function mute()   { muted = true;  if (masterGain) masterGain.gain.value = 0; }
+  function unmute() { muted = false; if (masterGain) masterGain.gain.value = 0.45; }
+  function isMuted() { return muted; }
   function enable() { audioEnabled = true; }
   function isEnabled() { return audioEnabled; }
 
-  return { startSplash, stopSplash, playModem, startMusic, updateTempo, stopMusic, playEat, playExplosion, playDeath, startDeathMusic, unlock, enable, isEnabled };
+  return { startSplash, stopSplash, playModem, startMusic, updateTempo, stopMusic, playEat, playExplosion, playWoosh, playDeath, startDeathMusic, unlock, mute, unmute, isMuted, enable, isEnabled };
 })();
 
 (() => {
@@ -605,10 +629,10 @@ const SFX = (() => {
         pineapples++;
       } else if (f.type === 'rat') {
         score += FOOD_TYPES.rat.value; foodScore += FOOD_TYPES.rat.value;
-        rats++;
+        rats++; SFX.playEat();
       } else {
         score += FOOD_TYPES.egg.value; foodScore += FOOD_TYPES.egg.value;
-        eggs++;
+        eggs++; SFX.playEat();
       }
       const idx = foods.indexOf(f);
       if (idx !== -1) foods.splice(idx, 1);
@@ -1084,6 +1108,7 @@ const SFX = (() => {
 
   function setFireTier(name) {
     if (name) {
+      SFX.playWoosh();
       const snapshot = [...foods];
       for (const f of snapshot) {
         if (f.type === 'rat')        { score += FOOD_TYPES.rat.value; foodScore += FOOD_TYPES.rat.value; rats++; }
@@ -1557,6 +1582,10 @@ const SFX = (() => {
       e.preventDefault();
     } else if (e.key === 'r' || e.key === 'R') {
       restart();
+    } else if (e.key === 'm' || e.key === 'M') {
+      if (SFX.isEnabled()) {
+        if (SFX.isMuted()) { SFX.unmute(); } else { SFX.mute(); }
+      }
     } else if (e.key === 'Escape') {
       dismissOverlay();
     }

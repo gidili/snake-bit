@@ -194,6 +194,18 @@ const SFX = (() => {
     });
   }
 
+  // Coin: SMB-style square wave with hard pitch step B5→E6
+  function playCoin(delayMs) {
+    const a = getAC(), t = a.currentTime + (delayMs || 0) / 1000;
+    const osc = a.createOscillator(), g = a.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(988, t);
+    osc.frequency.setValueAtTime(1319, t + 0.065);
+    g.gain.setValueAtTime(0.15, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc.connect(g); g.connect(out()); osc.start(t); osc.stop(t + 0.19);
+  }
+
   // Pineapple explosion: noise burst + pitch drop
   function playExplosion() {
     const a = getAC(), t = a.currentTime, sr = a.sampleRate;
@@ -301,7 +313,7 @@ const SFX = (() => {
   function enable() { audioEnabled = true; }
   function isEnabled() { return audioEnabled; }
 
-  return { startSplash, stopSplash, playModem, startMusic, updateTempo, stopMusic, playEat, playExplosion, playWoosh, playDeath, startDeathMusic, unlock, mute, unmute, isMuted, enable, isEnabled };
+  return { startSplash, stopSplash, playModem, startMusic, updateTempo, stopMusic, playEat, playCoin, playExplosion, playWoosh, playDeath, startDeathMusic, unlock, mute, unmute, isMuted, enable, isEnabled };
 })();
 
 (() => {
@@ -329,23 +341,23 @@ const SFX = (() => {
   fireCanvas.style.top = (-1 / GRID_H * 100) + '%';
   const gameWrapperEl = document.getElementById('game-wrapper');
   const FIRE_TIERS = [
-    { score:  800, name: 'fire' },
-    { score: 1350, name: 'green' },
-    { score: 1850, name: 'blue' },
-    { score: 2300, name: 'purple' },
-    { score: 2700, name: 'white' },
-    { score: 3000, name: 'rainbow' },
+    { score:  500, name: 'fire' },
+    { score:  700, name: 'green' },
+    { score:  900, name: 'blue' },
+    { score: 1100, name: 'purple' },
+    { score: 1300, name: 'white' },
+    { score: 1600, name: 'rainbow' },
   ];
   const FIRE_FRAME_MS = 120;
   const tierIndex = (name) => FIRE_TIERS.findIndex(t => t.name === name);
   let fireTier = null;
   const START_TICK_MS = 264;
   const MIN_TICK_MS = 55;
-  const TICK_STEP_MS = 12;
+  const TICK_STEP_MS = 8;
   const FOOD_PER_LEVEL = 3;
   const SECONDS_PER_LEVEL = 12;
-  const RAMP_LEVEL = 15;
-  const LATE_TICK_STEP_MS = 4;
+  const RAMP_LEVEL = 20;
+  const LATE_TICK_STEP_MS = 2;
   const MAX_FOOD = 3;
   const EGG_CHANCE = 0.25;
   const PINEAPPLE_CHANCE = 0.25;
@@ -355,8 +367,10 @@ const SFX = (() => {
   const FOOD_TYPES = {
     rat: { value: 1 },
     egg: { value: 3 },
+    goldegg: { value: 10 },
     pineapple: { value: 0, deadly: true },
   };
+  const GOLD_EGG_CHANCE = 0.4;
 
   const levelEl = document.getElementById('level');
 
@@ -481,9 +495,14 @@ const SFX = (() => {
       const y = Math.floor(Math.random() * GRID_H);
       if (isCellFree(x, y)) {
         const r = Math.random();
-        const type = r < PINEAPPLE_CHANCE
-          ? 'pineapple'
-          : (r < PINEAPPLE_CHANCE + EGG_CHANCE ? 'egg' : 'rat');
+        let type;
+        if (r < PINEAPPLE_CHANCE) {
+          type = 'pineapple';
+        } else if (r < PINEAPPLE_CHANCE + EGG_CHANCE) {
+          type = (fireTier === 'rainbow' && Math.random() < GOLD_EGG_CHANCE) ? 'goldegg' : 'egg';
+        } else {
+          type = 'rat';
+        }
         foods.push({ x, y, type });
         return;
       }
@@ -629,10 +648,10 @@ const SFX = (() => {
         pineapples++;
       } else if (f.type === 'rat') {
         score += FOOD_TYPES.rat.value; foodScore += FOOD_TYPES.rat.value;
-        rats++; SFX.playEat();
+        rats++; SFX.playCoin();
       } else {
-        score += FOOD_TYPES.egg.value; foodScore += FOOD_TYPES.egg.value;
-        eggs++; SFX.playEat();
+        score += FOOD_TYPES[f.type].value; foodScore += FOOD_TYPES[f.type].value;
+        eggs++; SFX.playCoin();
       }
       const idx = foods.indexOf(f);
       if (idx !== -1) foods.splice(idx, 1);
@@ -685,8 +704,8 @@ const SFX = (() => {
       } else {
         score += FOOD_TYPES[eaten.type].value; foodScore += FOOD_TYPES[eaten.type].value;
         if (eaten.type === 'rat') rats++;
-        else if (eaten.type === 'egg') eggs++;
-        SFX.playEat();
+        else if (eaten.type === 'egg' || eaten.type === 'goldegg') eggs++;
+        SFX.playCoin();
       }
       scoreEl.textContent = score;
       if (score > best) {
@@ -1110,11 +1129,13 @@ const SFX = (() => {
     if (name) {
       SFX.playWoosh();
       const snapshot = [...foods];
-      for (const f of snapshot) {
+      snapshot.forEach((f, i) => {
         if (f.type === 'rat')        { score += FOOD_TYPES.rat.value; foodScore += FOOD_TYPES.rat.value; rats++; }
         else if (f.type === 'egg')   { score += FOOD_TYPES.egg.value; foodScore += FOOD_TYPES.egg.value; eggs++; }
+        else if (f.type === 'goldegg') { score += FOOD_TYPES.goldegg.value; foodScore += FOOD_TYPES.goldegg.value; eggs++; }
         else if (f.type === 'pineapple') { score += 10; foodScore += 10; pineapples++; }
-      }
+        SFX.playCoin(300 + i * 90);
+      });
       scoreEl.textContent = score;
       if (score > best) {
         best = score;
@@ -1261,12 +1282,35 @@ const SFX = (() => {
   const drawEgg       = (cellX, cellY) => drawSprite(SPR_EGG,  cellX, cellY);
   const drawPineapple = (cellX, cellY) => drawSprite(SPR_PINEAPPLE, cellX, cellY);
 
+  function drawGoldEgg(cellX, cellY) {
+    const shimmer = (Math.sin(performance.now() / 350) + 1) / 2;
+    const baseX = cellX * CELL;
+    const baseY = cellY * CELL;
+    const outlineL = Math.round(25 + shimmer * 20);
+    const bodyL    = Math.round(60 + shimmer * 35);
+    const speckleL = Math.round(75 + shimmer * 22);
+    for (let y = 0; y < SP_GRID; y++) {
+      const row = SPR_EGG[y];
+      for (let x = 0; x < SP_GRID; x++) {
+        const ch = row[x];
+        let color;
+        if      (ch === 'O') color = `hsl(43,90%,${outlineL}%)`;
+        else if (ch === 'E') color = `hsl(43,95%,${bodyL}%)`;
+        else if (ch === 'e') color = `hsl(48,100%,${speckleL}%)`;
+        if (color) {
+          ctx.fillStyle = color;
+          ctx.fillRect(...spriteRect(baseX, baseY, x, y));
+        }
+      }
+    }
+  }
+
   function drawSnakeTail(cellX, cellY, tailDir) {
     const sprite = TAIL_SPRITES[`${tailDir.x},${tailDir.y}`] || SPR_TAIL_RIGHT;
     drawSprite(sprite, cellX, cellY);
   }
 
-  const FOOD_SPRITES = { rat: drawRat, egg: drawEgg, pineapple: drawPineapple };
+  const FOOD_SPRITES = { rat: drawRat, egg: drawEgg, goldegg: drawGoldEgg, pineapple: drawPineapple };
 
   function renderSpriteToCanvas(sprite, targetCanvas) {
     const tctx = targetCanvas.getContext('2d');

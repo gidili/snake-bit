@@ -378,11 +378,15 @@ const SFX = (() => {
   let level, startTime, pausedAt, pausedTotal, rats, eggs, pineapples;
   let particles, lastFrame;
   let unlockFlash = null;
+  let apocalypseHintStart = null;
   let gameOverShown = false;
   let lastSubmittedId = null;
   let hintFadeStart = null;
   let hintDismissed = false;
   const HINT_FADE_MS = 400;
+  let beatHintStart = null;
+  const BEAT_HINT_SHOW_MS = 5000;
+  const BEAT_HINT_FADE_MS = 600;
 
   function juiceFromPeel(peel) {
     try {
@@ -460,6 +464,8 @@ const SFX = (() => {
     lastFrame = performance.now();
     particles = [];
     pineappleOnlyStart = null;
+    apocalypseHintStart = null;
+    beatHintStart = isNarrowViewport ? null : performance.now();
     fireTier = null;
     gameWrapperEl.classList.remove('fire-on');
     fireCtx.clearRect(0, 0, fireCanvas.width, fireCanvas.height);
@@ -1144,6 +1150,7 @@ const SFX = (() => {
       }
       foods = [];
       unlockFlash = { items: snapshot, startMs: performance.now(), SOLID_MS: 2000, FLASH_MS: 2500, FLASH_INTERVAL_MS: 150, BLANK_MS: 1200 };
+      if (name === 'rainbow') apocalypseHintStart = performance.now();
       gameWrapperEl.classList.add('fire-on');
     } else {
       gameWrapperEl.classList.remove('fire-on');
@@ -1283,20 +1290,18 @@ const SFX = (() => {
   const drawPineapple = (cellX, cellY) => drawSprite(SPR_PINEAPPLE, cellX, cellY);
 
   function drawGoldEgg(cellX, cellY) {
-    const shimmer = (Math.sin(performance.now() / 350) + 1) / 2;
+    const sweep = (Math.sin(performance.now() / 900) + 1) / 2;
     const baseX = cellX * CELL;
     const baseY = cellY * CELL;
-    const outlineL = Math.round(25 + shimmer * 20);
-    const bodyL    = Math.round(60 + shimmer * 35);
-    const speckleL = Math.round(75 + shimmer * 22);
     for (let y = 0; y < SP_GRID; y++) {
       const row = SPR_EGG[y];
       for (let x = 0; x < SP_GRID; x++) {
         const ch = row[x];
+        const shine = Math.max(0, 1 - Math.abs(x / (SP_GRID - 1) - sweep) * 3.5);
         let color;
-        if      (ch === 'O') color = `hsl(43,90%,${outlineL}%)`;
-        else if (ch === 'E') color = `hsl(43,95%,${bodyL}%)`;
-        else if (ch === 'e') color = `hsl(48,100%,${speckleL}%)`;
+        if      (ch === 'O') color = `hsl(${38 + shine*10},90%,${Math.round(22 + shine*28)}%)`;
+        else if (ch === 'E') color = `hsl(${42 + shine*12},${Math.round(85 + shine*15)}%,${Math.round(50 + shine*45)}%)`;
+        else if (ch === 'e') color = `hsl(${50 + shine*10},100%,${Math.round(68 + shine*30)}%)`;
         if (color) {
           ctx.fillStyle = color;
           ctx.fillRect(...spriteRect(baseX, baseY, x, y));
@@ -1479,15 +1484,23 @@ const SFX = (() => {
     } else if (paused) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const tickMs = currentTickMs();
+      const pausePhase = (performance.now() % tickMs) / tickMs;
+      const pausePulse = 0.3 + 0.7 * (1 + Math.cos(pausePhase * Math.PI * 2)) / 2;
+      ctx.save();
+      ctx.globalAlpha = pausePulse;
       ctx.fillStyle = '#f7d358';
       ctx.font = "22px 'Press Start 2P', 'Courier New', monospace";
       ctx.textAlign = 'center';
       ctx.fillText('PAUSED', canvas.width / 2, canvas.height / 2);
+      ctx.restore();
     }
 
     drawParticles();
     drawUnlockFlash();
     drawSwipeHint();
+    drawBeatHint();
+    drawApocalypseHint();
   }
 
   function drawSwipeHint() {
@@ -1496,7 +1509,10 @@ const SFX = (() => {
     let alpha = 1;
     if (hintFadeStart !== null) {
       const elapsed = performance.now() - hintFadeStart;
-      if (elapsed >= HINT_FADE_MS) return;
+      if (elapsed >= HINT_FADE_MS) {
+        if (beatHintStart === null) beatHintStart = performance.now();
+        return;
+      }
       alpha = 1 - elapsed / HINT_FADE_MS;
     }
     ctx.save();
@@ -1506,6 +1522,87 @@ const SFX = (() => {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('\u2190  SWIPE  \u2192', canvas.width / 2, canvas.height / 2);
+    ctx.restore();
+  }
+
+  function drawBeatHint() {
+    if (!alive || paused || beatHintStart === null) return;
+    const now = performance.now();
+    const elapsed = now - beatHintStart;
+    if (elapsed >= BEAT_HINT_SHOW_MS + BEAT_HINT_FADE_MS) { beatHintStart = null; return; }
+    const fadeAlpha = elapsed < BEAT_HINT_SHOW_MS
+      ? 1
+      : 1 - (elapsed - BEAT_HINT_SHOW_MS) / BEAT_HINT_FADE_MS;
+    const phase = (now - lastTick) / currentTickMs();
+    const pulse = 0.3 + 0.7 * (1 + Math.cos(phase * Math.PI * 2)) / 2;
+    ctx.save();
+    ctx.globalAlpha = fadeAlpha * 0.65;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, canvas.height / 2 - 20, canvas.width, 40);
+    ctx.globalAlpha = fadeAlpha * pulse;
+    ctx.fillStyle = '#f7d358';
+    ctx.font = "22px 'Press Start 2P', 'Courier New', monospace";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('MOVE ON THE BEAT', canvas.width / 2, canvas.height / 2);
+    ctx.restore();
+  }
+
+  function drawApocalypseHint() {
+    if (!alive || apocalypseHintStart === null) return;
+    const now = performance.now();
+    const elapsed = now - apocalypseHintStart;
+    if (elapsed >= 15500) { apocalypseHintStart = null; return; }
+    const phase = (now - lastTick) / currentTickMs();
+    const pulse = 0.4 + 0.6 * (1 + Math.cos(phase * Math.PI * 2)) / 2;
+    const hue = (now * 0.3) % 360;
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    ctx.save();
+    ctx.fillStyle = `hsl(${hue}, 100%, 62%)`;
+    ctx.font = "22px 'Press Start 2P', 'Courier New', monospace";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const bandH = (n) => 30 + n * 36;
+    const drawBand = (alpha, n) => {
+      ctx.globalAlpha = alpha * 0.65;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, cy - bandH(n) / 2, canvas.width, bandH(n));
+    };
+    const drawLines = (lines, alpha) => {
+      ctx.fillStyle = `hsl(${hue}, 100%, 62%)`;
+      lines.forEach((text, i) => {
+        const offset = (i - (lines.length - 1) / 2) * 36;
+        ctx.globalAlpha = alpha * pulse;
+        ctx.fillText(text, cx, cy + offset);
+      });
+    };
+
+    // Phase 1 (0–3.5s): title
+    if (elapsed < 3500) {
+      const alpha = elapsed < 300 ? elapsed / 300 : elapsed > 3000 ? 1 - (elapsed - 3000) / 500 : 1;
+      drawBand(alpha, 2);
+      drawLines(['!!! RAINBOW SNAKE !!!', 'OF THE APOCALYPSE'], alpha);
+    }
+
+    // Phase 2 (3.8s–11s): slides, each replacing the previous
+    if (elapsed >= 3800) {
+      const FADE = 300;
+      const slides = [
+        { lines: ['YOU ARE THE CHOSEN ONE...'],              appear: 3800,  end: 7300  },
+        { lines: ['DESTROY ALL EVIL', 'PINEAPPLES...'],      appear: 7600,  end: 11100 },
+        { lines: ['AVENGE YOUR BROTHERS', 'AND SISTERS!!!'], appear: 11400, end: 14900 },
+      ];
+      slides.forEach(({ lines, appear, end }) => {
+        if (elapsed < appear || elapsed >= end + FADE) return;
+        const alpha = elapsed < appear + FADE ? (elapsed - appear) / FADE
+                    : elapsed < end           ? 1
+                    : 1 - (elapsed - end) / FADE;
+        drawBand(alpha, lines.length);
+        drawLines(lines, alpha);
+      });
+    }
+
     ctx.restore();
   }
 

@@ -385,7 +385,7 @@ const SFX = (() => {
   let hintDismissed = false;
   const HINT_FADE_MS = 400;
   let beatHintStart = null;
-  const BEAT_HINT_SHOW_MS = 5000;
+  const BEAT_HINT_SHOW_MS = 3800;
   const BEAT_HINT_FADE_MS = 600;
 
   function juiceFromPeel(peel) {

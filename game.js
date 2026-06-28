@@ -1526,10 +1526,10 @@ const SFX = (() => {
   }
 
   function drawBeatHint() {
-    if (!alive || paused || beatHintStart === null) return;
+    if (!alive || paused || beatHintStart === null || beatHintStart === -1) return;
     const now = performance.now();
     const elapsed = now - beatHintStart;
-    if (elapsed >= BEAT_HINT_SHOW_MS + BEAT_HINT_FADE_MS) { beatHintStart = null; return; }
+    if (elapsed >= BEAT_HINT_SHOW_MS + BEAT_HINT_FADE_MS) { beatHintStart = -1; return; }
     const fadeAlpha = elapsed < BEAT_HINT_SHOW_MS
       ? 1
       : 1 - (elapsed - BEAT_HINT_SHOW_MS) / BEAT_HINT_FADE_MS;

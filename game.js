@@ -367,7 +367,7 @@ const SFX = (() => {
   const FOOD_TYPES = {
     rat: { value: 1 },
     egg: { value: 3 },
-    goldegg: { value: 10 },
+    goldegg: { value: 9 },
     pineapple: { value: 0, deadly: true },
   };
   const GOLD_EGG_CHANCE = 0.4;
@@ -657,7 +657,7 @@ const SFX = (() => {
         rats++; SFX.playCoin();
       } else {
         score += FOOD_TYPES[f.type].value; foodScore += FOOD_TYPES[f.type].value;
-        eggs++; SFX.playCoin();
+        eggs += f.type === 'goldegg' ? 3 : 1; SFX.playCoin();
       }
       const idx = foods.indexOf(f);
       if (idx !== -1) foods.splice(idx, 1);
@@ -710,7 +710,8 @@ const SFX = (() => {
       } else {
         score += FOOD_TYPES[eaten.type].value; foodScore += FOOD_TYPES[eaten.type].value;
         if (eaten.type === 'rat') rats++;
-        else if (eaten.type === 'egg' || eaten.type === 'goldegg') eggs++;
+        else if (eaten.type === 'egg') eggs++;
+        else if (eaten.type === 'goldegg') eggs += 3;
         SFX.playCoin();
       }
       scoreEl.textContent = score;
@@ -1138,7 +1139,7 @@ const SFX = (() => {
       snapshot.forEach((f, i) => {
         if (f.type === 'rat')        { score += FOOD_TYPES.rat.value; foodScore += FOOD_TYPES.rat.value; rats++; }
         else if (f.type === 'egg')   { score += FOOD_TYPES.egg.value; foodScore += FOOD_TYPES.egg.value; eggs++; }
-        else if (f.type === 'goldegg') { score += FOOD_TYPES.goldegg.value; foodScore += FOOD_TYPES.goldegg.value; eggs++; }
+        else if (f.type === 'goldegg') { score += FOOD_TYPES.goldegg.value; foodScore += FOOD_TYPES.goldegg.value; eggs += 3; }
         else if (f.type === 'pineapple') { score += 10; foodScore += 10; pineapples++; }
         SFX.playCoin(300 + i * 90);
       });

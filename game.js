@@ -376,6 +376,8 @@ const SFX = (() => {
 
   let snake, dir, nextDir, foods, score, foodScore, best, alive, paused, lastTick;
   let level, startTime, pausedAt, pausedTotal, rats, eggs, pineapples;
+  let endTime = null;
+  let sessionId = null, sessionPromise = null, endPromise = null;
   let particles, lastFrame;
   let unlockFlash = null;
   let apocalypseHintStart = null;
@@ -454,8 +456,10 @@ const SFX = (() => {
     alive = true;
     paused = false;
     startTime = performance.now();
+    endTime = null;
     pausedAt = 0;
     pausedTotal = 0;
+    beginSession();
     foods = [];
     while (foods.length < MAX_FOOD) spawnFood();
     scoreEl.textContent = score;
@@ -473,7 +477,38 @@ const SFX = (() => {
   }
 
   function survivalSeconds() {
-    return (performance.now() - startTime - pausedTotal) / 1000;
+    return ((endTime === null ? performance.now() : endTime) - startTime - pausedTotal) / 1000;
+  }
+
+  // Single funnel for death: freezes the survival clock so the reported
+  // time_played is the actual game duration and not "time until the player
+  // got around to typing their initials".
+  function die() {
+    if (!alive) return;
+    alive = false;
+    endTime = performance.now();
+    SFX.playDeath();
+  }
+
+  // The server timestamps both edges of the game on its own clock; these two
+  // calls are what makes time_played checkable rather than merely believed.
+  function beginSession() {
+    sessionId = null;
+    endPromise = null;
+    sessionPromise = juicer
+      ? juicer.rpc('start_game')
+          .then(({ data }) => { sessionId = data || null; })
+          .catch(() => { sessionId = null; })
+      : null;
+  }
+
+  function endSession() {
+    if (!juicer) return;
+    endPromise = (async () => {
+      if (sessionPromise) await sessionPromise;
+      if (!sessionId) return;
+      await juicer.rpc('end_game', { p_session: sessionId });
+    })().catch(() => {});
   }
 
   function computeLevel() {
@@ -684,11 +719,11 @@ const SFX = (() => {
     const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
 
     if (head.x < 0 || head.x >= GRID_W || head.y < 0 || head.y >= GRID_H) {
-      alive = false; SFX.playDeath();
+      die();
       return;
     }
     if (snake.some(s => s.x === head.x && s.y === head.y)) {
-      alive = false; SFX.playDeath();
+      die();
       return;
     }
 
@@ -704,7 +739,7 @@ const SFX = (() => {
           pineapples++;
         } else {
           spawnExplosion(head.x, head.y);
-          alive = false; SFX.playDeath();
+          die();
           return;
         }
       } else {
@@ -1773,6 +1808,7 @@ const SFX = (() => {
   }
 
   function onGameOver() {
+    endSession();
     leaderboardViewMode = false;
     autoPausedByLeaderboard = false;
     overlayRestartBtnEl.hidden = false;
@@ -1819,7 +1855,11 @@ const SFX = (() => {
     submitBtnEl.disabled = true;
     skipBtnEl.disabled = true;
     localStorage.setItem('snake_initials', raw);
+    // A fast submit can outrun the end_game round trip; the server requires
+    // ended_at to be set, so wait for it rather than racing it.
+    if (endPromise) await endPromise;
     const { data, error } = await juicer.rpc('submit_score', {
+      p_session: sessionId,
       p_payload: {
         initials: padded,
         score: Math.floor(score),

@@ -57,7 +57,7 @@ declare
   v_ended timestamptz;
   v_used timestamptz;
   v_elapsed numeric;
-  v_msg constant text := 'score not accepted: if you wanna do this your job is to do the work!';
+  v_msg constant text := 'score not accepted: if you wanna be a smarty pants your job is to do the work!';
 begin
   v_initials   := p_payload->>'initials';
   v_score      := (p_payload->>'score')::int;

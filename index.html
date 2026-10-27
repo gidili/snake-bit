@@ -263,12 +263,26 @@
     }
     #kbd-info { display: none; }
     #control-cluster { display: contents; }
-    /* Same 136px height as the button column, wider, and 16px clear of
-       its neighbours. */
+    /* Same 136px height as the button column, wider, and 24px clear of
+       its neighbours (it gives up a little width on the narrowest phones
+       to keep that). An invisible 20px strip either side still steers, for
+       a thumb that slips off the edge, and stops 4px short of the
+       neighbours. Events on the strip land on #dpad itself, and the wedge
+       maths reads anything beyond the edge as left or right. */
     #dpad {
       width: 170px;
+      min-width: 140px;
       height: 136px;
-      margin: 0 16px;
+      margin: 0 24px;
+      flex-shrink: 1;
+    }
+    #dpad::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      bottom: -2px;
+      left: -22px;     /* 20px past the 2px border */
+      right: -22px;
     }
     #dpad .dpad-btn .btn-icon { width: 36px; height: 36px; }
     #dpad .dpad-btn[data-dir="left"] .btn-icon, #dpad .dpad-btn[data-dir="right"] .btn-icon { width: 40px; height: 40px; }

@@ -1991,14 +1991,63 @@ const SFX = (() => {
   };
 
   const DPAD_TO_ARROW = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight' };
-  document.querySelectorAll('.dpad-btn').forEach(btn => {
-    btn.addEventListener('pointerdown', (e) => {
-      nextDir = DIR_MAP[btn.dataset.dir];
-      recordKonami(DPAD_TO_ARROW[btn.dataset.dir]);
-      dismissHint();
-      e.preventDefault();
-    });
+  // The d-pad reads like a real one: the whole square is live, split along
+  // its diagonals into four wedges, with a small dead centre. The pointer is
+  // captured, so rolling the thumb into another wedge turns without lifting.
+  const dpadEl = document.getElementById('dpad');
+  const DPAD_DEAD = 0.15;      // of the pad's smaller side, around the centre
+  let dpadPointer = null, dpadDir = null;
+  function dpadDirAt(e) {
+    const r = dpadEl.getBoundingClientRect();
+    const dx = e.clientX - (r.left + r.width / 2);
+    const dy = e.clientY - (r.top + r.height / 2);
+    if (Math.hypot(dx, dy) < DPAD_DEAD * Math.min(r.width, r.height)) return null;
+    // Normalised, so a pad wider than it is tall still splits corner to corner.
+    const nx = dx / r.width, ny = dy / r.height;
+    return Math.abs(nx) > Math.abs(ny) ? (nx > 0 ? 'right' : 'left') : (ny > 0 ? 'down' : 'up');
+  }
+  function dpadShow(dir) {
+    dpadEl.querySelectorAll('polygon[data-dir]').forEach(p => p.classList.toggle('pressed', p.dataset.dir === dir));
+  }
+  // The dead diamond, drawn to the same size the touch code uses. The face
+  // stretches to the pad, so its units differ across and down.
+  function sizeDpadCentre() {
+    const r = dpadEl.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const d = DPAD_DEAD * Math.min(r.width, r.height);
+    const dx = 100 * d / r.width, dy = 100 * d / r.height;
+    dpadEl.querySelector('.dpad-centre').setAttribute('points',
+      `${50 - dx},50 50,${50 - dy} ${50 + dx},50 50,${50 + dy}`);
+  }
+  sizeDpadCentre();
+  window.addEventListener('resize', sizeDpadCentre);
+  function dpadSteer(dir) {
+    if (dir === dpadDir) return;
+    dpadDir = dir;
+    dpadShow(dir);
+    if (!dir) return;
+    nextDir = DIR_MAP[dir];
+    recordKonami(DPAD_TO_ARROW[dir]);
+    dismissHint();
+  }
+  dpadEl.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    dpadPointer = e.pointerId;
+    try { dpadEl.setPointerCapture(e.pointerId); } catch (_) {}
+    dpadDir = null;
+    dpadSteer(dpadDirAt(e));
   });
+  dpadEl.addEventListener('pointermove', (e) => {
+    if (e.pointerId === dpadPointer) dpadSteer(dpadDirAt(e));
+  });
+  const dpadLift = (e) => {
+    if (e.pointerId !== dpadPointer) return;
+    dpadPointer = null; dpadDir = null;
+    dpadShow(null);
+  };
+  dpadEl.addEventListener('pointerup', dpadLift);
+  dpadEl.addEventListener('pointercancel', dpadLift);
+  dpadEl.addEventListener('lostpointercapture', dpadLift);
 
   let swipeStart = null;
   canvas.addEventListener('touchstart', (e) => {

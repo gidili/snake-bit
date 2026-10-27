@@ -141,12 +141,38 @@
     gap: 16px;
     align-items: stretch;
   }
+  /* The whole pad is one touch surface, split corner to corner into four
+     wedges (game.js), and drawn that way: a gold-edged square of four
+     triangles, an arrow in each, a small dead diamond in the middle. */
   #dpad {
-    display: grid;
-    grid-template-columns: repeat(3, 36px);
-    grid-template-rows: repeat(3, 36px);
-    gap: 2px;
+    position: relative;
+    width: 112px;
+    height: 112px;
+    box-sizing: border-box;
+    border: 2px solid #F8B800;
+    background: #1a1a24;
+    touch-action: none;
+    cursor: pointer;
   }
+  .dpad-face { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .dpad-face polygon {
+    fill: #1a1a24;
+    stroke: #F8B800;
+    stroke-width: 2;
+    vector-effect: non-scaling-stroke;
+  }
+  .dpad-face polygon.pressed { fill: #3a3a4a; }
+  #dpad .dpad-btn {
+    position: absolute;
+    pointer-events: none;
+    background: none;
+    border: 0;
+  }
+  #dpad .dpad-btn .btn-icon { width: 28px; height: 28px; }
+  #dpad .dpad-btn[data-dir="up"]    { left: 50%; top: 4%; transform: translateX(-50%); }
+  #dpad .dpad-btn[data-dir="down"]  { left: 50%; bottom: 4%; transform: translateX(-50%); }
+  #dpad .dpad-btn[data-dir="left"]  { left: 4%; top: 50%; transform: translateY(-50%); }
+  #dpad .dpad-btn[data-dir="right"] { right: 4%; top: 50%; transform: translateY(-50%); }
   #action-col {
     display: flex;
     flex-direction: column;
@@ -171,7 +197,7 @@
   .dpad-btn, .action-btn {
     background: #1a1a24;
   }
-  .dpad-btn:active, .action-btn:active {
+  .action-btn:active {
     background: #3a3a4a;
   }
   .action-btn {
@@ -186,10 +212,6 @@
     display: block;
     pointer-events: none;
   }
-  .dpad-btn[data-dir="up"]    { grid-column: 2; grid-row: 1; }
-  .dpad-btn[data-dir="left"]  { grid-column: 1; grid-row: 2; }
-  .dpad-btn[data-dir="right"] { grid-column: 3; grid-row: 2; }
-  .dpad-btn[data-dir="down"]  { grid-column: 2; grid-row: 3; }
   kbd {
     background: #2a2a3a;
     border-radius: 3px;
@@ -241,11 +263,15 @@
     }
     #kbd-info { display: none; }
     #control-cluster { display: contents; }
+    /* Same 136px height as the button column, wider, and 16px clear of
+       its neighbours. */
     #dpad {
-      grid-template-columns: repeat(3, 44px);
-      grid-template-rows: repeat(3, 44px);
-      gap: 2px;
+      width: 170px;
+      height: 136px;
+      margin: 0 16px;
     }
+    #dpad .dpad-btn .btn-icon { width: 36px; height: 36px; }
+    #dpad .dpad-btn[data-dir="left"] .btn-icon, #dpad .dpad-btn[data-dir="right"] .btn-icon { width: 40px; height: 40px; }
     #action-col { width: 44px; height: 136px; }
     .action-btn { width: 44px; height: 44px; }
     .btn-icon { width: 42px; height: 42px; }
@@ -492,6 +518,13 @@
         <button class="action-btn" id="btn-leaderboard" aria-label="Leaderboard"><canvas class="btn-icon" width="24" height="24"></canvas></button>
       </div>
       <div id="dpad" role="group" aria-label="Directional pad">
+        <svg class="dpad-face" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <polygon data-dir="up" points="0,0 100,0 50,50"/>
+          <polygon data-dir="right" points="100,0 100,100 50,50"/>
+          <polygon data-dir="down" points="100,100 0,100 50,50"/>
+          <polygon data-dir="left" points="0,100 0,0 50,50"/>
+          <polygon class="dpad-centre" points="50,50"/>
+        </svg>
         <button class="dpad-btn" data-dir="up" aria-label="Up"><canvas class="btn-icon" width="24" height="24"></canvas></button>
         <button class="dpad-btn" data-dir="left" aria-label="Left"><canvas class="btn-icon" width="24" height="24"></canvas></button>
         <button class="dpad-btn" data-dir="right" aria-label="Right"><canvas class="btn-icon" width="24" height="24"></canvas></button>
